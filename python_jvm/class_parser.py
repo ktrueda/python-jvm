@@ -120,6 +120,7 @@ def constant_pool_type(b: bytes) -> type:
 
 def run(code: bytes, c: ClassFile):
     stack = []
+    return_value = None
     with mmap.mmap(-1, len(code)) as mm:
         mm.write(code)
         mm.seek(0)
@@ -157,8 +158,26 @@ def run(code: bytes, c: ClassFile):
                 stack.append(string)
             elif opcode == b'\xb6':
                 print('invokevirtual')
+                pool_index = parse_int(mm.read(2))
+                symbol_name_index = c.constant_pool[pool_index-1]
+
+                callee = c.constant_pool[symbol_name_index.name_and_type_index-1]
+                args_exp = c.constant_pool[callee.descriptor_index-1].info.decode()
+
+                args = []
+                for _ in range(len(args_exp.split(':'))-1):
+                    args.append(stack.pop())
+                method = stack.pop()
+
+                return_value = 'aaa'
+
+        
+
+
+
             elif opcode == b'\xb1':
                 print('return')
+                return
             else:
                 raise Exception('unknown opcode')
             
