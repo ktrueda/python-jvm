@@ -5,6 +5,14 @@ import mmap
 # from struct import unpack
 filename = "./HelloWorld.class"
 
+std_method = {
+    'java/lang/System': {
+        'out':{
+            'println': lambda x: print(x[0])
+        }
+    }
+}
+
 class REPR:
     def __repr__(self):
         attr_exp = ",".join([f'{k} = {v}' for k, v in vars(self).items()])
@@ -132,7 +140,7 @@ def run(code: bytes, c: ClassFile):
         print('code_length', code_length)
         while True:
             opcode: bytes = mm.read(1)
-            print('opcode', opcode)
+            print('opcode', opcode, stack)
             if opcode == b'\xb2':
                 print('getstatic')
                 pool_index = parse_int(mm.read(2))
@@ -162,19 +170,17 @@ def run(code: bytes, c: ClassFile):
                 symbol_name_index = c.constant_pool[pool_index-1]
 
                 callee = c.constant_pool[symbol_name_index.name_and_type_index-1]
+                callee_method = c.constant_pool[callee.name_index-1].info.decode() #println
                 args_exp = c.constant_pool[callee.descriptor_index-1].info.decode()
 
                 args = []
-                for _ in range(len(args_exp.split(':'))-1):
+                for _ in range(len(args_exp.split(';'))-1):
                     args.append(stack.pop())
                 method = stack.pop()
 
+                print('args', args, len(args_exp.split(':'))-1)
+                std_method[method['callable']['class']][method['callable']['field']][callee_method](args)
                 return_value = 'aaa'
-
-        
-
-
-
             elif opcode == b'\xb1':
                 print('return')
                 return
