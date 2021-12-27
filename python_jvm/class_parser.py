@@ -4,11 +4,13 @@ from pprint import pprint
 # from struct import unpack
 filename = "./HelloWorld.class"
 
-class CONSTANT:
-    cp_index: bytes
+class REPR:
     def __repr__(self):
         attr_exp = ",".join([f'{k} = {v}' for k, v in vars(self).items()])
         return f'''{str(type(self))}({attr_exp})'''
+
+class CONSTANT(REPR):
+    cp_index: bytes
 
 class CONSTANT_Methodref(CONSTANT):
     class_index: int # 2 bytes
@@ -48,6 +50,34 @@ class CONSTANT_String(CONSTANT):
         self.string_index = parse_int(f.read(2))
 
 
+class Attribute(REPR):
+    attribute_name_index: int
+    attribute_length: int
+    info: bytes
+    def __init__(self, f):
+        self.attribute_name_index = parse_int(f.read(2))
+        self.attribute_length = parse_int(f.read(4))
+        self.info = f.read(self.attribute_length)
+    
+
+
+class Method(REPR):
+    access_flags: bytes
+    name_index: int
+    descriptor_index: int
+    attribute_count: int
+    attribute_info: List[Attribute] = []
+    def __init__(self, f):
+        self.access_flags = f.read(2)
+        self.name_index = parse_int(f.read(2))
+        self.descriptor_index = parse_int(f.read(2))
+        self.attribute_count = parse_int(f.read(2))
+        for _ in range(self.attribute_count):
+            self.attribute_info.append(Attribute(f))
+
+
+
+
 @dataclass
 class ClassFile:
     # _: KW_ONLY
@@ -56,6 +86,17 @@ class ClassFile:
     major_version: int # 2bytes
     constant_pool_count: bytes #2bytes
     constant_pool: List[CONSTANT] = field(default_factory=list)
+    access_flags: bytes = field(default_factory=bytes)# 2bytes
+    this_class: bytes = field(default_factory=bytes)# 2bytes
+    super_class: bytes = field(default_factory=bytes)# 2bytes
+    interfaces_count: int = field(default_factory=int)# 2bytes
+    # skip interfaces 
+    fields_count: int = field(default_factory=int)# 2bytes
+    # skip fields
+    methods_count: int = field(default_factory=int)# 2bytes
+    methods: List[Method] = field(default_factory=list)
+    attributes_count: int = field(default_factory=int)# 2bytes
+    attributes: List[Attribute] = field(default_factory=list)
 
 
 def parse_int(b: bytes) -> int:
@@ -86,12 +127,24 @@ with open(filename, 'rb') as f:
         major_version=parse_int(f.read(2)),
         constant_pool_count=parse_int(f.read(2))
     )
-    try:
-        for cpi in range(c.constant_pool_count - 1):
-            cpt = constant_pool_type(f.read(1))
-            cp = cpt(f)
-            cp.index = cpi + 1
-            c.constant_pool.append(cp)
-            # break
-    finally:
-        print(c)
+    for cpi in range(c.constant_pool_count - 1):
+        cpt = constant_pool_type(f.read(1))
+        cp = cpt(f)
+        cp.index = cpi + 1
+        c.constant_pool.append(cp)
+    
+    c.access_flags = f.read(2)
+    c.this_class = f.read(2)
+    c.super_class = f.read(2)
+    c.interfaces_count = parse_int(f.read(2))
+    c.fields_count = parse_int(f.read(2))
+    c.methods_count = parse_int(f.read(2))
+
+    for _ in range(c.methods_count):
+        c.methods.append(Method(f))
+
+    c.attributes_count = parse_int(f.read(2))
+
+    for _ in range(c.attributes_count):
+        c.attributes.append(Attribute(f))
+    print(c)
