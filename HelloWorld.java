@@ -1,5 +1,7 @@
 class HelloWorld{
   public static void main(String[] args){
-    System.out.println("Hello World I Love yokohama");
+    int i = 1;
+    int j = i + 2;
+    System.out.println(j);
   }
 }

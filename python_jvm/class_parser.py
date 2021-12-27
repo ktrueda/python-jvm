@@ -4,7 +4,7 @@ import mmap
 import logging
 logging.basicConfig(
     encoding='utf-8', 
-    level=logging.WARN)
+    level=logging.DEBUG)
 # from struct import unpack
 filename = "./HelloWorld.class"
 
@@ -132,6 +132,7 @@ def constant_pool_type(b: bytes) -> type:
 def run(code: bytes, c: ClassFile):
     stack = []
     return_value = None
+    var1, var2, var3, var4 = None, None, None, None
     with mmap.mmap(-1, len(code)) as mm:
         mm.write(code)
         mm.seek(0)
@@ -145,7 +146,28 @@ def run(code: bytes, c: ClassFile):
             opcode: bytes = mm.read(1)
             logging.debug(f'opcode {opcode}')
             logging.debug(f'stack {stack}')
-            if opcode == b'\xb2':
+            if opcode == b'\x04':
+                logging.info('OPCODE: iconst_1')
+                stack.append(1)
+            elif opcode == b'\x05':
+                logging.info('OPCODE: iconst_2')
+                stack.append(2)
+            elif opcode == b'\x3c':
+                logging.info('OPCODE: istore_1')
+                var1 = stack.pop()
+            elif opcode == b'\x3d':
+                logging.info('OPCODE: istore_2')
+                var2 = stack.pop()
+            elif opcode == b'\x1b':
+                logging.info('OPCODE: iload_1')
+                stack.append(var1)
+            elif opcode == b'\x1c':
+                logging.info('OPCODE: iload_2')
+                stack.append(var2)
+            elif opcode == b'\x60':
+                logging.info('OPCODE: iadd')
+                stack.append(stack.pop() + stack.pop())
+            elif opcode == b'\xb2':
                 logging.info('OPCODE: getstatic')
                 pool_index = parse_int(mm.read(2))
                 symbol_name: CONSTANT_Fieldref = c.constant_pool[pool_index-1]
@@ -177,10 +199,13 @@ def run(code: bytes, c: ClassFile):
                 callee_method = c.constant_pool[callee.name_index-1].info.decode() #println
                 args_exp = c.constant_pool[callee.descriptor_index-1].info.decode()
 
+                logging.debug(f'args_exp: {args_exp}')
                 args = []
-                for _ in range(len(args_exp.split(';'))-1):
+                # for _ in range(len(args_exp.split(';'))-1):
+                for _ in range(1):
                     args.append(stack.pop())
                 method = stack.pop()
+                logging.debug(f'method: {method} args: {args}')
 
                 std_method[method['callable']['class']][method['callable']['field']][callee_method](args)
                 return_value = 'aaa'
@@ -188,7 +213,7 @@ def run(code: bytes, c: ClassFile):
                 logging.info('OPCODE: return')
                 return
             else:
-                raise Exception('unknown opcode')
+                raise Exception(f'unknown opcode {opcode}')
 
 def find_main(c :ClassFile) -> Method:
     for m in c.methods:
@@ -240,4 +265,5 @@ with open(filename, 'rb') as f:
     main_method = find_main(c)
     main_code = find_code(main_method, c)
     hex_exp = "".join([f"{i:02x} " for i in main_code])
+    logging.debug(f'main code {hex_exp}')
     run(main_code, c)
