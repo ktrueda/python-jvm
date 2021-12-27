@@ -175,7 +175,7 @@ def run(code: bytes, c: ClassFile):
                 callee_class = c.constant_pool[c.constant_pool[symbol_name.class_index-1].name_index-1].info.decode()
                 field = c.constant_pool[c.constant_pool[symbol_name.name_and_type_index-1].name_index-1].info.decode()
                 method_return = c.constant_pool[c.constant_pool[symbol_name.name_and_type_index-1].descriptor_index-1].info.decode()
-                logging.debug('callee info', callee_class, field, method_return)
+                logging.debug(f'callee info, {callee_class}, {field}, {method_return}')
 
                 stack.append({
                     'callable': {
