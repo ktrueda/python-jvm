@@ -1,7 +1,10 @@
 from dataclasses import dataclass, field#, KW_ONLY
 from typing import List
-from pprint import pprint
 import mmap
+import logging
+logging.basicConfig(
+    encoding='utf-8', 
+    level=logging.WARN)
 # from struct import unpack
 filename = "./HelloWorld.class"
 
@@ -135,21 +138,22 @@ def run(code: bytes, c: ClassFile):
         max_stack = parse_int(mm.read(2))
         max_locals = parse_int(mm.read(2))
         code_length = parse_int(mm.read(4))
-        print('max_stack', max_stack)
-        print('max_locals', max_locals)
-        print('code_length', code_length)
+        logging.debug(f'max_stack {max_stack}')
+        logging.debug(f'max_locals {max_locals}')
+        logging.debug(f'code_length {code_length}')
         while True:
             opcode: bytes = mm.read(1)
-            print('opcode', opcode, stack)
+            logging.debug(f'opcode {opcode}')
+            logging.debug(f'stack {stack}')
             if opcode == b'\xb2':
-                print('getstatic')
+                logging.info('OPCODE: getstatic')
                 pool_index = parse_int(mm.read(2))
                 symbol_name: CONSTANT_Fieldref = c.constant_pool[pool_index-1]
                 assert isinstance(symbol_name, CONSTANT_Fieldref)
                 callee_class = c.constant_pool[c.constant_pool[symbol_name.class_index-1].name_index-1].info.decode()
                 field = c.constant_pool[c.constant_pool[symbol_name.name_and_type_index-1].name_index-1].info.decode()
                 method_return = c.constant_pool[c.constant_pool[symbol_name.name_and_type_index-1].descriptor_index-1].info.decode()
-                print('callee class field', callee_class, field, method_return)
+                logging.debug('callee info', callee_class, field, method_return)
 
                 stack.append({
                     'callable': {
@@ -159,13 +163,13 @@ def run(code: bytes, c: ClassFile):
                     }
                 })
             elif opcode == b'\x12':
-                print('ldc')
+                logging.info('OPCODE: ldc')
                 pool_index = parse_int(mm.read(1))
                 symbol_name_index = c.constant_pool[pool_index-1]
                 string = c.constant_pool[symbol_name_index.string_index-1].info.decode()
                 stack.append(string)
             elif opcode == b'\xb6':
-                print('invokevirtual')
+                logging.info('OPCODE: invokevirtual')
                 pool_index = parse_int(mm.read(2))
                 symbol_name_index = c.constant_pool[pool_index-1]
 
@@ -178,24 +182,18 @@ def run(code: bytes, c: ClassFile):
                     args.append(stack.pop())
                 method = stack.pop()
 
-                print('args', args, len(args_exp.split(':'))-1)
                 std_method[method['callable']['class']][method['callable']['field']][callee_method](args)
                 return_value = 'aaa'
             elif opcode == b'\xb1':
-                print('return')
+                logging.info('OPCODE: return')
                 return
             else:
                 raise Exception('unknown opcode')
-            
-               
-
-            # break
 
 def find_main(c :ClassFile) -> Method:
     for m in c.methods:
         cp_name = c.constant_pool[m.name_index-1]
         assert isinstance(cp_name, CONSTANT_Utf8)
-        print("@@@@", cp_name)
         if cp_name.info == b'main':
             return m
     return None
@@ -237,17 +235,9 @@ with open(filename, 'rb') as f:
 
     for _ in range(c.attributes_count):
         c.attributes.append(Attribute(f))
-    print(c)
 
 
-    print("###########################")
     main_method = find_main(c)
-    print('main_method', main_method, main_method.attribute_info)
-
-
-    print("###########################")
     main_code = find_code(main_method, c)
     hex_exp = "".join([f"{i:02x} " for i in main_code])
-    print(f"main_code {hex_exp}")
-
     run(main_code, c)
