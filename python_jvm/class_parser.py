@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field#, KW_ONLY
 from typing import List
 from pprint import pprint
+import mmap
 # from struct import unpack
 filename = "./HelloWorld.class"
 
@@ -59,22 +60,20 @@ class Attribute(REPR):
         self.attribute_length = parse_int(f.read(4))
         self.info = f.read(self.attribute_length)
     
-
-
 class Method(REPR):
     access_flags: bytes
     name_index: int
     descriptor_index: int
     attribute_count: int
-    attribute_info: List[Attribute] = []
+    attribute_info: List[Attribute]
     def __init__(self, f):
         self.access_flags = f.read(2)
         self.name_index = parse_int(f.read(2))
         self.descriptor_index = parse_int(f.read(2))
         self.attribute_count = parse_int(f.read(2))
+        self.attribute_info = []
         for _ in range(self.attribute_count):
             self.attribute_info.append(Attribute(f))
-
 
 
 
@@ -119,6 +118,28 @@ def constant_pool_type(b: bytes) -> type:
     else:
         raise Exception(f'unknown constant pool type {i}')
 
+def run(code: bytes):
+    mem = mmap.mmap(-1, len(code))
+    mem.write(code)
+
+def find_main(c :ClassFile) -> Method:
+    for m in c.methods:
+        cp_name = c.constant_pool[m.name_index-1]
+        assert isinstance(cp_name, CONSTANT_Utf8)
+        print("@@@@", cp_name)
+        if cp_name.info == b'main':
+            return m
+    return None
+
+def find_code(m :Method, c: ClassFile) -> bytes:
+    for a in m.attribute_info:
+        cp_name = c.constant_pool[a.attribute_name_index-1]
+        assert isinstance(cp_name, CONSTANT_Utf8)
+        if cp_name.info == b'Code':
+            return a.info
+    return None
+
+
 with open(filename, 'rb') as f:
     # read header
     c = ClassFile(
@@ -148,3 +169,14 @@ with open(filename, 'rb') as f:
     for _ in range(c.attributes_count):
         c.attributes.append(Attribute(f))
     print(c)
+
+
+    print("###########################")
+    main_method = find_main(c)
+    print('main_method', main_method, main_method.attribute_info)
+
+
+    print("###########################")
+    main_code = find_code(main_method, c)
+    hex_exp = "".join([f"{i:02x} " for i in main_code])
+    print(f"main_code {hex_exp}")
