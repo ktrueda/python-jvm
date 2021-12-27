@@ -118,9 +118,53 @@ def constant_pool_type(b: bytes) -> type:
     else:
         raise Exception(f'unknown constant pool type {i}')
 
-def run(code: bytes):
-    mem = mmap.mmap(-1, len(code))
-    mem.write(code)
+def run(code: bytes, c: ClassFile):
+    stack = []
+    with mmap.mmap(-1, len(code)) as mm:
+        mm.write(code)
+        mm.seek(0)
+        max_stack = parse_int(mm.read(2))
+        max_locals = parse_int(mm.read(2))
+        code_length = parse_int(mm.read(4))
+        print('max_stack', max_stack)
+        print('max_locals', max_locals)
+        print('code_length', code_length)
+        while True:
+            opcode: bytes = mm.read(1)
+            print('opcode', opcode)
+            if opcode == b'\xb2':
+                print('getstatic')
+                pool_index = parse_int(mm.read(2))
+                symbol_name: CONSTANT_Fieldref = c.constant_pool[pool_index-1]
+                assert isinstance(symbol_name, CONSTANT_Fieldref)
+                callee_class = c.constant_pool[c.constant_pool[symbol_name.class_index-1].name_index-1].info.decode()
+                field = c.constant_pool[c.constant_pool[symbol_name.name_and_type_index-1].name_index-1].info.decode()
+                method_return = c.constant_pool[c.constant_pool[symbol_name.name_and_type_index-1].descriptor_index-1].info.decode()
+                print('callee class field', callee_class, field, method_return)
+
+                stack.append({
+                    'callable': {
+                        'class': callee_class,
+                        'field': field,
+                        'return': method_return
+                    }
+                })
+            elif opcode == b'\x12':
+                print('ldc')
+                pool_index = parse_int(mm.read(1))
+                symbol_name_index = c.constant_pool[pool_index-1]
+                string = c.constant_pool[symbol_name_index.string_index-1].info.decode()
+                stack.append(string)
+            elif opcode == b'\xb6':
+                print('invokevirtual')
+            elif opcode == b'\xb1':
+                print('return')
+            else:
+                raise Exception('unknown opcode')
+            
+               
+
+            # break
 
 def find_main(c :ClassFile) -> Method:
     for m in c.methods:
@@ -180,3 +224,5 @@ with open(filename, 'rb') as f:
     main_code = find_code(main_method, c)
     hex_exp = "".join([f"{i:02x} " for i in main_code])
     print(f"main_code {hex_exp}")
+
+    run(main_code, c)
