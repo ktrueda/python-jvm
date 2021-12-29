@@ -3,9 +3,9 @@ from typing import List
 import mmap
 import logging
 from textwrap import dedent
-# logging.basicConfig(
-#     encoding='utf-8', 
-#     level=logging.DEBUG)
+logging.basicConfig(
+    encoding='utf-8', 
+    level=logging.DEBUG)
 logging.basicConfig(
     encoding='utf-8', 
     level=logging.ERROR)
@@ -112,6 +112,8 @@ class ClassFile:
     attributes_count: int = field(default_factory=int)# 2bytes
     attributes: List[Attribute] = field(default_factory=list)
 
+def hexdump(b: bytes):
+    return "".join([f"{i:02x} " for i in b])
 
 def parse_int(b: bytes) -> int:
     return int.from_bytes(b, byteorder='big')
@@ -152,7 +154,7 @@ def run(code: bytes, c: ClassFile):
             logging.debug(dedent(f'''
             ########################
             current position {mm.tell() - 1 - 8}
-            opcode {opcode}
+            opcode {hexdump(opcode)}
             stack {stack}
             local_variables {local_variables}
             ########################
