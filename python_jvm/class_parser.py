@@ -173,6 +173,12 @@ def run(code: bytes, c: ClassFile):
                 logging.info('OPCODE: bipush')
                 val = parse_int(mm.read(1))
                 stack.append(val)
+            elif opcode == b'\x11':
+                logging.info('OPCODE: sipush')
+                byte1 = parse_int(mm.read(1))
+                byte2 = parse_int(mm.read(1))
+                value = int.from_bytes((byte1 << 8 | byte2).to_bytes(2, byteorder='big'), signed=True, byteorder='big')
+                stack.append(value)
             elif opcode == b'\x12':
                 logging.info('OPCODE: ldc')
                 pool_index = parse_int(mm.read(1))
@@ -239,8 +245,9 @@ def run(code: bytes, c: ClassFile):
                 offset = int.from_bytes((branch1 << 8 | branch2).to_bytes(2, byteorder='big'), signed=True, byteorder='big') - 3
                 logging.debug(f"goto offset {offset}")
                 mm.seek(offset, 1)
-
-
+            elif opcode == b'\xac':
+                logging.info('OPCODE: ireturn')
+                return stack.pop()
             elif opcode == b'\xb2':
                 logging.info('OPCODE: getstatic')
                 pool_index = parse_int(mm.read(2))
@@ -293,7 +300,7 @@ def run(code: bytes, c: ClassFile):
                 
                 callee_method_obj = find_method(c, callee_method)
                 callee_code = find_code(callee_method_obj, c)
-                run(callee_code, c)
+                stack.append(run(callee_code, c))
             else:
                 raise Exception(f'unknown opcode {opcode}')
 

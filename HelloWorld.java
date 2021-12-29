@@ -15,9 +15,16 @@ class HelloWorld{
     }
     System.out.println(s);
     show();
+    int c = constant();
+    System.out.println(c);
+
   }
 
   public static void show(){
     System.out.println("show string");
+  }
+
+  public static int constant(){
+    return 1234;
   }
 }
