@@ -154,7 +154,7 @@ def run(code: Code, c: ClassFile, local_variables):
 
             logging.debug(dedent(f'''
             ########################
-            current position {mm.tell() - 1 - 8}
+            current position {mm.tell() - 1}
             opcode {hexdump(opcode)}
             stack {stack}
             local_variables {local_variables}
@@ -227,11 +227,37 @@ def run(code: Code, c: ClassFile, local_variables):
                 val2 = stack.pop()
                 logging.debug(f"iadd {val1} + {val2}")
                 stack.append(val1 + val2)
+            elif opcode == b'\x64':
+                logging.info('OPCODE: isub')
+                value2 = stack.pop()
+                value1 = stack.pop()
+                stack.append(value1 - value2)
             elif opcode == b'\x84':
                 logging.info('OPCODE: iinc')
                 target = parse_int(mm.read(1))
                 val = parse_int(mm.read(1))
                 local_variables[target] += val
+            elif opcode == b'\x9a':
+                logging.info('OPCODE: ifne')
+                branch1 = parse_int(mm.read(1))
+                branch2 = parse_int(mm.read(1))
+                value = stack.pop()
+                if value != 0:
+                    offset = int.from_bytes((branch1 << 8 | branch2).to_bytes(2, byteorder='big'), signed=True, byteorder='big') - 3
+                    logging.debug(f'seek to {offset}')
+                    mm.seek(offset, 1)
+            elif opcode == b'\xa0':
+                logging.info('OPCODE: if_icmpne')
+                branch1 = parse_int(mm.read(1))
+                branch2 = parse_int(mm.read(1))
+                value2 = stack.pop()
+                value1 = stack.pop()
+                logging.debug(f'value1: {value1} value2: {value2}')
+                if value1 != value2:
+                    offset = int.from_bytes((branch1 << 8 | branch2).to_bytes(2, byteorder='big'), signed=True, byteorder='big') - 3
+                    logging.debug(f'seek to {offset}')
+                    mm.seek(offset, 1)
+ 
             elif opcode == b'\xa2':
                 logging.info('OPCODE: if_icmpge')
                 branch1 = parse_int(mm.read(1))
