@@ -3,7 +3,7 @@ from typing import List
 import mmap
 import logging
 from textwrap import dedent
-level = logging.ERROR
+level = logging.DEBUG
 logging.basicConfig(
     encoding='utf-8', 
     level=level)
@@ -189,6 +189,9 @@ def run(code: bytes, c: ClassFile):
                 logging.info('OPCODE: iload')
                 index = parse_int(mm.read(1))
                 stack.append(local_variables[index-1])
+            elif opcode == b'\x1a':
+                logging.info('OPCODE: iload_0')
+                stack.append(local_variables[-1])
             elif opcode == b'\x1b':
                 logging.info('OPCODE: iload_1')
                 stack.append(local_variables[0])
