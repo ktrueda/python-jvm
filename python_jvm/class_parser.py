@@ -2,9 +2,13 @@ from dataclasses import dataclass, field#, KW_ONLY
 from typing import List
 import mmap
 import logging
+from textwrap import dedent
+# logging.basicConfig(
+#     encoding='utf-8', 
+#     level=logging.DEBUG)
 logging.basicConfig(
     encoding='utf-8', 
-    level=logging.DEBUG)
+    level=logging.ERROR)
 # from struct import unpack
 filename = "./HelloWorld.class"
 
@@ -144,9 +148,17 @@ def run(code: bytes, c: ClassFile):
         logging.debug(f'code_length {code_length}')
         while True:
             opcode: bytes = mm.read(1)
-            logging.debug(f'current position {mm.tell()}')
-            logging.debug(f'opcode {opcode}')
-            logging.debug(f'stack {stack}')
+
+            logging.debug(dedent(f'''
+            ########################
+            current position {mm.tell() - 1 - 8}
+            opcode {opcode}
+            stack {stack}
+            var1 {var1}
+            var2 {var2}
+            var3 {var3}
+            ########################
+            '''))
             if opcode == b'\x03':
                 logging.info('OPCODE: iconst_0')
                 stack.append(0)
@@ -196,10 +208,13 @@ def run(code: bytes, c: ClassFile):
                 logging.info('OPCODE: if_icmpge')
                 branch1 = parse_int(mm.read(1))
                 branch2 = parse_int(mm.read(1))
-                logging.debug(f'var1: {var1} var2: {var2}')
-                if var1 >= var2:
-                    logging.debug(f'seek to {branch1}')
-                    mm.read(branch1)
+                value2 = stack.pop()
+                value1 = stack.pop()
+                logging.debug(f'value1: {value1} value2: {value2}')
+                if value1 >= value2:
+                    offset = int.from_bytes((branch1 << 8 | branch2).to_bytes(2, byteorder='big'), signed=True, byteorder='big') - 3
+                    logging.debug(f'seek to {offset}')
+                    mm.seek(offset, 1)
                 else:
                     # logging.debug(f'seek to {branch2}')
                     # mm.read(branch2)
@@ -208,7 +223,7 @@ def run(code: bytes, c: ClassFile):
                 logging.info('OPCODE: goto')
                 branch1 = parse_int(mm.read(1))
                 branch2 = parse_int(mm.read(1))
-                offset = int.from_bytes((branch1 << 8 | branch2).to_bytes(2, byteorder='big'), signed=True, byteorder='big') - 1
+                offset = int.from_bytes((branch1 << 8 | branch2).to_bytes(2, byteorder='big'), signed=True, byteorder='big') - 3
                 logging.debug(f"goto offset {offset}")
                 mm.seek(offset, 1)
 
