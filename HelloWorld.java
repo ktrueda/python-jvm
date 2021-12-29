@@ -20,6 +20,8 @@ class HelloWorld{
 
     int r = identity(12345);
     System.out.println(r);
+
+    System.out.println(add(1,30));
   }
 
   public static void show(){
@@ -33,4 +35,9 @@ class HelloWorld{
   public static int identity(int arg){
     return arg;
   }
+
+  public static int add(int x, int y){
+    return x + y;
+  }
+
 }

@@ -169,6 +169,9 @@ def run(code: Code, c: ClassFile, local_variables):
             elif opcode == b'\x05':
                 logging.info('OPCODE: iconst_2')
                 stack.append(2)
+            elif opcode == b'\x06':
+                logging.info('OPCODE: iconst_3')
+                stack.append(3)
             elif opcode == b'\x08':
                 logging.info('OPCODE: iconst_5')
                 stack.append(5)
@@ -309,7 +312,7 @@ def run(code: Code, c: ClassFile, local_variables):
 
                 args = [None for _ in range(callee_code.max_locals)]
                 callee_descriptor_exp = c.constant_pool[callee_method_obj.descriptor_index-1].info.decode()
-                n_args = 1 if '(I)' in callee_descriptor_exp else 0
+                n_args = 1 if '(I)' in callee_descriptor_exp else 2 if '(II)' in callee_descriptor_exp else 0
                 for i in range(n_args):
                    args[i] = stack.pop()
 
