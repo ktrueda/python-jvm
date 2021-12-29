@@ -18,6 +18,8 @@ class HelloWorld{
     int c = constant();
     System.out.println(c);
 
+    int r = identity(12345);
+    System.out.println(r);
   }
 
   public static void show(){
@@ -26,5 +28,9 @@ class HelloWorld{
 
   public static int constant(){
     return 1234;
+  }
+
+  public static int identity(int arg){
+    return arg;
   }
 }

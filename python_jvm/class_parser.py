@@ -306,7 +306,13 @@ def run(code: Code, c: ClassFile, local_variables):
                 
                 callee_method_obj = find_method(c, callee_method)
                 callee_code = find_code(callee_method_obj, c)
+
                 args = [None for _ in range(callee_code.max_locals)]
+                callee_descriptor_exp = c.constant_pool[callee_method_obj.descriptor_index-1].info.decode()
+                n_args = 1 if '(I)' in callee_descriptor_exp else 0
+                for i in range(n_args):
+                   args[i] = stack.pop()
+
                 stack.append(run(callee_code, c, args))
             else:
                 raise Exception(f'unknown opcode {opcode}')
