@@ -144,9 +144,13 @@ def run(code: bytes, c: ClassFile):
         logging.debug(f'code_length {code_length}')
         while True:
             opcode: bytes = mm.read(1)
+            logging.debug(f'current position {mm.tell()}')
             logging.debug(f'opcode {opcode}')
             logging.debug(f'stack {stack}')
-            if opcode == b'\x04':
+            if opcode == b'\x03':
+                logging.info('OPCODE: iconst_0')
+                stack.append(0)
+            elif opcode == b'\x04':
                 logging.info('OPCODE: iconst_1')
                 stack.append(1)
             elif opcode == b'\x05':
@@ -158,15 +162,57 @@ def run(code: bytes, c: ClassFile):
             elif opcode == b'\x3d':
                 logging.info('OPCODE: istore_2')
                 var2 = stack.pop()
+            elif opcode == b'\x3e':
+                logging.info('OPCODE: istore_3')
+                var3 = stack.pop()
+            elif opcode == b'\x10':
+                logging.info('OPCODE: bipush')
+                val = parse_int(mm.read(1))
+                stack.append(val)
             elif opcode == b'\x1b':
                 logging.info('OPCODE: iload_1')
                 stack.append(var1)
             elif opcode == b'\x1c':
                 logging.info('OPCODE: iload_2')
                 stack.append(var2)
+            elif opcode == b'\x1d':
+                logging.info('OPCODE: iload_3')
+                stack.append(var3)
             elif opcode == b'\x60':
                 logging.info('OPCODE: iadd')
                 stack.append(stack.pop() + stack.pop())
+            elif opcode == b'\x84':
+                logging.info('OPCODE: iinc')
+                target = parse_int(mm.read(1))
+                val = parse_int(mm.read(1))
+                if target == 1:
+                    var1 += val
+                elif target == 2:
+                    var2 += val
+                elif target == 3:
+                    var3 += val
+
+            elif opcode == b'\xa2':
+                logging.info('OPCODE: if_icmpge')
+                branch1 = parse_int(mm.read(1))
+                branch2 = parse_int(mm.read(1))
+                logging.debug(f'var1: {var1} var2: {var2}')
+                if var1 >= var2:
+                    logging.debug(f'seek to {branch1}')
+                    mm.read(branch1)
+                else:
+                    # logging.debug(f'seek to {branch2}')
+                    # mm.read(branch2)
+                    pass
+            elif opcode == b'\xa7':
+                logging.info('OPCODE: goto')
+                branch1 = parse_int(mm.read(1))
+                branch2 = parse_int(mm.read(1))
+                offset = int.from_bytes((branch1 << 8 | branch2).to_bytes(2, byteorder='big'), signed=True, byteorder='big') - 1
+                logging.debug(f"goto offset {offset}")
+                mm.seek(offset, 1)
+
+
             elif opcode == b'\xb2':
                 logging.info('OPCODE: getstatic')
                 pool_index = parse_int(mm.read(2))
