@@ -3,12 +3,10 @@ from typing import List
 import mmap
 import logging
 from textwrap import dedent
+level = logging.DEBUG
 logging.basicConfig(
     encoding='utf-8', 
-    level=logging.DEBUG)
-logging.basicConfig(
-    encoding='utf-8', 
-    level=logging.ERROR)
+    level=level)
 # from struct import unpack
 filename = "./HelloWorld.class"
 
@@ -168,6 +166,9 @@ def run(code: bytes, c: ClassFile):
             elif opcode == b'\x05':
                 logging.info('OPCODE: iconst_2')
                 stack.append(2)
+            elif opcode == b'\x08':
+                logging.info('OPCODE: iconst_5')
+                stack.append(5)
             elif opcode == b'\x10':
                 logging.info('OPCODE: bipush')
                 val = parse_int(mm.read(1))
@@ -178,6 +179,10 @@ def run(code: bytes, c: ClassFile):
                 symbol_name_index = c.constant_pool[pool_index-1]
                 string = c.constant_pool[symbol_name_index.string_index-1].info.decode()
                 stack.append(string)
+            elif opcode == b'\x15':
+                logging.info('OPCODE: iload')
+                index = parse_int(mm.read(1))
+                stack.append(local_variables[index-1])
             elif opcode == b'\x1b':
                 logging.info('OPCODE: iload_1')
                 stack.append(local_variables[0])
@@ -187,6 +192,11 @@ def run(code: bytes, c: ClassFile):
             elif opcode == b'\x1d':
                 logging.info('OPCODE: iload_3')
                 stack.append(local_variables[2])
+            elif opcode == b'\x36':
+                logging.info('OPCODE: istore')
+                val = stack.pop()
+                index = parse_int(mm.read(1))
+                local_variables[index-1] = val
             elif opcode == b'\x3c':
                 logging.info('OPCODE: istore_1')
                 local_variables[0] = stack.pop()
@@ -198,7 +208,10 @@ def run(code: bytes, c: ClassFile):
                 local_variables[2] = stack.pop()
             elif opcode == b'\x60':
                 logging.info('OPCODE: iadd')
-                stack.append(stack.pop() + stack.pop())
+                val1 = stack.pop()
+                val2 = stack.pop()
+                logging.debug(f"iadd {val1} + {val2}")
+                stack.append(val1 + val2)
             elif opcode == b'\x84':
                 logging.info('OPCODE: iinc')
                 target = parse_int(mm.read(1))
