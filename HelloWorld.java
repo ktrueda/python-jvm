@@ -14,5 +14,10 @@ class HelloWorld{
       s += l;
     }
     System.out.println(s);
+    show();
+  }
+
+  public static void show(){
+    System.out.println("show string");
   }
 }

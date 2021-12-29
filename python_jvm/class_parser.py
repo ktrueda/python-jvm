@@ -3,7 +3,7 @@ from typing import List
 import mmap
 import logging
 from textwrap import dedent
-level = logging.DEBUG
+level = logging.ERROR
 logging.basicConfig(
     encoding='utf-8', 
     level=level)
@@ -280,14 +280,28 @@ def run(code: bytes, c: ClassFile):
             elif opcode == b'\xb1':
                 logging.info('OPCODE: return')
                 return
+            elif opcode == b'\xb8':
+                logging.info('OPCODE: invokestatic')
+                indexbyte1 = parse_int(mm.read(1))
+                indexbyte2 = parse_int(mm.read(1))
+                logging.debug(f'indexbyte1 {indexbyte1} indexbyte2 {indexbyte2}')
+                callee_cp_index = int.from_bytes((indexbyte1 << 8 | indexbyte2).to_bytes(2, byteorder='big'), signed=True, byteorder='big')
+                logging.debug(f'callee_cp_index {callee_cp_index}')
+                callee_class = c.constant_pool[c.constant_pool[c.constant_pool[callee_cp_index-1].class_index-1].name_index-1].info.decode()
+                callee_method = c.constant_pool[c.constant_pool[c.constant_pool[callee_cp_index-1].name_and_type_index-1].name_index-1].info.decode()
+                logging.debug(f'invokestatic {callee_class}.{callee_method}')
+                
+                callee_method_obj = find_method(c, callee_method)
+                callee_code = find_code(callee_method_obj, c)
+                run(callee_code, c)
             else:
                 raise Exception(f'unknown opcode {opcode}')
 
-def find_main(c :ClassFile) -> Method:
+def find_method(c :ClassFile, name:str) -> Method:
     for m in c.methods:
         cp_name = c.constant_pool[m.name_index-1]
         assert isinstance(cp_name, CONSTANT_Utf8)
-        if cp_name.info == b'main':
+        if cp_name.info == name.encode():
             return m
     return None
 
@@ -330,7 +344,7 @@ with open(filename, 'rb') as f:
         c.attributes.append(Attribute(f))
 
 
-    main_method = find_main(c)
+    main_method = find_method(c, 'main')
     main_code = find_code(main_method, c)
     hex_exp = "".join([f"{i:02x} " for i in main_code])
     logging.debug(f'main code {hex_exp}')
