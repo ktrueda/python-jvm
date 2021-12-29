@@ -134,9 +134,6 @@ def constant_pool_type(b: bytes) -> type:
         raise Exception(f'unknown constant pool type {i}')
 
 def run(code: bytes, c: ClassFile):
-    stack = []
-    return_value = None
-    var1, var2, var3, var4 = None, None, None, None
     with mmap.mmap(-1, len(code)) as mm:
         mm.write(code)
         mm.seek(0)
@@ -146,6 +143,9 @@ def run(code: bytes, c: ClassFile):
         logging.debug(f'max_stack {max_stack}')
         logging.debug(f'max_locals {max_locals}')
         logging.debug(f'code_length {code_length}')
+        stack = []
+        return_value = None
+        local_variables = [None for _ in range(max_locals)]
         while True:
             opcode: bytes = mm.read(1)
 
@@ -154,9 +154,7 @@ def run(code: bytes, c: ClassFile):
             current position {mm.tell() - 1 - 8}
             opcode {opcode}
             stack {stack}
-            var1 {var1}
-            var2 {var2}
-            var3 {var3}
+            local_variables {local_variables}
             ########################
             '''))
             if opcode == b'\x03':
@@ -170,26 +168,26 @@ def run(code: bytes, c: ClassFile):
                 stack.append(2)
             elif opcode == b'\x3c':
                 logging.info('OPCODE: istore_1')
-                var1 = stack.pop()
+                local_variables[0] = stack.pop()
             elif opcode == b'\x3d':
                 logging.info('OPCODE: istore_2')
-                var2 = stack.pop()
+                local_variables[1] = stack.pop()
             elif opcode == b'\x3e':
                 logging.info('OPCODE: istore_3')
-                var3 = stack.pop()
+                local_variables[2] = stack.pop()
             elif opcode == b'\x10':
                 logging.info('OPCODE: bipush')
                 val = parse_int(mm.read(1))
                 stack.append(val)
             elif opcode == b'\x1b':
                 logging.info('OPCODE: iload_1')
-                stack.append(var1)
+                stack.append(local_variables[0])
             elif opcode == b'\x1c':
                 logging.info('OPCODE: iload_2')
-                stack.append(var2)
+                stack.append(local_variables[1])
             elif opcode == b'\x1d':
                 logging.info('OPCODE: iload_3')
-                stack.append(var3)
+                stack.append(local_variables[2])
             elif opcode == b'\x60':
                 logging.info('OPCODE: iadd')
                 stack.append(stack.pop() + stack.pop())
@@ -197,13 +195,7 @@ def run(code: bytes, c: ClassFile):
                 logging.info('OPCODE: iinc')
                 target = parse_int(mm.read(1))
                 val = parse_int(mm.read(1))
-                if target == 1:
-                    var1 += val
-                elif target == 2:
-                    var2 += val
-                elif target == 3:
-                    var3 += val
-
+                local_variables[target - 1] += val
             elif opcode == b'\xa2':
                 logging.info('OPCODE: if_icmpge')
                 branch1 = parse_int(mm.read(1))
