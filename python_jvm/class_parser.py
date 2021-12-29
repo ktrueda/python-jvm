@@ -88,7 +88,16 @@ class Method(REPR):
         for _ in range(self.attribute_count):
             self.attribute_info.append(Attribute(f))
 
-
+class Code(REPR):
+    max_stack: int
+    max_locals: int
+    code_length: int
+    code: bytes
+    def __init__(self, f):
+        self.max_stack = parse_int(f[0:2])
+        self.max_locals = parse_int(f[2:4])
+        self.code_length = parse_int(f[4:8])
+        self.code = f[8:]
 
 @dataclass
 class ClassFile:
@@ -133,19 +142,13 @@ def constant_pool_type(b: bytes) -> type:
     else:
         raise Exception(f'unknown constant pool type {i}')
 
-def run(code: bytes, c: ClassFile):
-    with mmap.mmap(-1, len(code)) as mm:
-        mm.write(code)
+def run(code: Code, c: ClassFile, local_variables):
+    with mmap.mmap(-1, len(code.code)) as mm:
+        mm.write(code.code)
         mm.seek(0)
-        max_stack = parse_int(mm.read(2))
-        max_locals = parse_int(mm.read(2))
-        code_length = parse_int(mm.read(4))
-        logging.debug(f'max_stack {max_stack}')
-        logging.debug(f'max_locals {max_locals}')
-        logging.debug(f'code_length {code_length}')
         stack = []
         return_value = None
-        local_variables = [None for _ in range(max_locals)]
+        # local_variables = [None for _ in range(max_locals)]
         while True:
             opcode: bytes = mm.read(1)
 
@@ -303,7 +306,8 @@ def run(code: bytes, c: ClassFile):
                 
                 callee_method_obj = find_method(c, callee_method)
                 callee_code = find_code(callee_method_obj, c)
-                stack.append(run(callee_code, c))
+                args = [None for _ in range(callee_code.max_locals)]
+                stack.append(run(callee_code, c, args))
             else:
                 raise Exception(f'unknown opcode {opcode}')
 
@@ -315,12 +319,12 @@ def find_method(c :ClassFile, name:str) -> Method:
             return m
     return None
 
-def find_code(m :Method, c: ClassFile) -> bytes:
+def find_code(m :Method, c: ClassFile) -> Code:
     for a in m.attribute_info:
         cp_name = c.constant_pool[a.attribute_name_index-1]
         assert isinstance(cp_name, CONSTANT_Utf8)
         if cp_name.info == b'Code':
-            return a.info
+            return Code(a.info)
     return None
 
 
@@ -356,6 +360,6 @@ with open(filename, 'rb') as f:
 
     main_method = find_method(c, 'main')
     main_code = find_code(main_method, c)
-    hex_exp = "".join([f"{i:02x} " for i in main_code])
-    logging.debug(f'main code {hex_exp}')
-    run(main_code, c)
+    # hex_exp = "".join([f"{i:02x} " for i in main_code])
+    # logging.debug(f'main code {hex_exp}')
+    run(main_code, c, [None for _ in range(main_code.max_locals)])
