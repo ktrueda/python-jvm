@@ -168,19 +168,16 @@ def run(code: bytes, c: ClassFile):
             elif opcode == b'\x05':
                 logging.info('OPCODE: iconst_2')
                 stack.append(2)
-            elif opcode == b'\x3c':
-                logging.info('OPCODE: istore_1')
-                local_variables[0] = stack.pop()
-            elif opcode == b'\x3d':
-                logging.info('OPCODE: istore_2')
-                local_variables[1] = stack.pop()
-            elif opcode == b'\x3e':
-                logging.info('OPCODE: istore_3')
-                local_variables[2] = stack.pop()
             elif opcode == b'\x10':
                 logging.info('OPCODE: bipush')
                 val = parse_int(mm.read(1))
                 stack.append(val)
+            elif opcode == b'\x12':
+                logging.info('OPCODE: ldc')
+                pool_index = parse_int(mm.read(1))
+                symbol_name_index = c.constant_pool[pool_index-1]
+                string = c.constant_pool[symbol_name_index.string_index-1].info.decode()
+                stack.append(string)
             elif opcode == b'\x1b':
                 logging.info('OPCODE: iload_1')
                 stack.append(local_variables[0])
@@ -190,6 +187,15 @@ def run(code: bytes, c: ClassFile):
             elif opcode == b'\x1d':
                 logging.info('OPCODE: iload_3')
                 stack.append(local_variables[2])
+            elif opcode == b'\x3c':
+                logging.info('OPCODE: istore_1')
+                local_variables[0] = stack.pop()
+            elif opcode == b'\x3d':
+                logging.info('OPCODE: istore_2')
+                local_variables[1] = stack.pop()
+            elif opcode == b'\x3e':
+                logging.info('OPCODE: istore_3')
+                local_variables[2] = stack.pop()
             elif opcode == b'\x60':
                 logging.info('OPCODE: iadd')
                 stack.append(stack.pop() + stack.pop())
@@ -239,12 +245,6 @@ def run(code: bytes, c: ClassFile):
                         'return': method_return
                     }
                 })
-            elif opcode == b'\x12':
-                logging.info('OPCODE: ldc')
-                pool_index = parse_int(mm.read(1))
-                symbol_name_index = c.constant_pool[pool_index-1]
-                string = c.constant_pool[symbol_name_index.string_index-1].info.decode()
-                stack.append(string)
             elif opcode == b'\xb6':
                 logging.info('OPCODE: invokevirtual')
                 pool_index = parse_int(mm.read(2))
