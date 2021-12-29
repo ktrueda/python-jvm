@@ -188,33 +188,33 @@ def run(code: bytes, c: ClassFile):
             elif opcode == b'\x15':
                 logging.info('OPCODE: iload')
                 index = parse_int(mm.read(1))
-                stack.append(local_variables[index-1])
+                stack.append(local_variables[index])
             elif opcode == b'\x1a':
                 logging.info('OPCODE: iload_0')
-                stack.append(local_variables[-1])
+                stack.append(local_variables[0])
             elif opcode == b'\x1b':
                 logging.info('OPCODE: iload_1')
-                stack.append(local_variables[0])
+                stack.append(local_variables[1])
             elif opcode == b'\x1c':
                 logging.info('OPCODE: iload_2')
-                stack.append(local_variables[1])
+                stack.append(local_variables[2])
             elif opcode == b'\x1d':
                 logging.info('OPCODE: iload_3')
-                stack.append(local_variables[2])
+                stack.append(local_variables[3])
             elif opcode == b'\x36':
                 logging.info('OPCODE: istore')
                 val = stack.pop()
                 index = parse_int(mm.read(1))
-                local_variables[index-1] = val
+                local_variables[index] = val
             elif opcode == b'\x3c':
                 logging.info('OPCODE: istore_1')
-                local_variables[0] = stack.pop()
+                local_variables[1] = stack.pop()
             elif opcode == b'\x3d':
                 logging.info('OPCODE: istore_2')
-                local_variables[1] = stack.pop()
+                local_variables[2] = stack.pop()
             elif opcode == b'\x3e':
                 logging.info('OPCODE: istore_3')
-                local_variables[2] = stack.pop()
+                local_variables[3] = stack.pop()
             elif opcode == b'\x60':
                 logging.info('OPCODE: iadd')
                 val1 = stack.pop()
@@ -225,7 +225,7 @@ def run(code: bytes, c: ClassFile):
                 logging.info('OPCODE: iinc')
                 target = parse_int(mm.read(1))
                 val = parse_int(mm.read(1))
-                local_variables[target - 1] += val
+                local_variables[target] += val
             elif opcode == b'\xa2':
                 logging.info('OPCODE: if_icmpge')
                 branch1 = parse_int(mm.read(1))
