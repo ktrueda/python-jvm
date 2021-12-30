@@ -137,7 +137,7 @@ def constant_pool_type(b: bytes) -> type:
 
 def read_classfile(filepath: str) -> ClassFile:
 
-    with open(filename, 'rb') as f:
+    with open(filepath, 'rb') as f:
         # read header
         c = ClassFile(
             magic=f.read(4),
