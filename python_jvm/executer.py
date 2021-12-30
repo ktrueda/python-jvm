@@ -1,7 +1,7 @@
 import mmap
 from textwrap import dedent
-from typing import Dict, Optional
-from python_jvm.class_parser import (CONSTANT_Integer, CONSTANT_String, Code,
+from typing import Any, Dict, List, Optional, Union
+from python_jvm.class_parser import (CONSTANT_Class, CONSTANT_Integer, CONSTANT_String, Code,
                                      ClassFile,
                                      Method,
                                      CONSTANT_Utf8,
@@ -23,7 +23,7 @@ std_method = {
 def find_method(cfs: Dict[str, ClassFile], _class: str, name: str) -> Optional[Method]:
     c = cfs[_class]
     for m in c.methods:
-        cp_name = c.constant_pool[m.name_index]
+        cp_name: CONSTANT_Utf8 = c.constant_pool[m.name_index]
         assert isinstance(cp_name, CONSTANT_Utf8)
         if cp_name.info == name.encode():
             return m
@@ -33,7 +33,7 @@ def find_method(cfs: Dict[str, ClassFile], _class: str, name: str) -> Optional[M
 def find_code(m: Method, cfs: Dict[str, ClassFile], _class: str) -> Optional[Code]:
     c = cfs[_class]
     for a in m.attribute_info:
-        cp_name = c.constant_pool[a.attribute_name_index]
+        cp_name: CONSTANT_Utf8 = c.constant_pool[a.attribute_name_index]
         assert isinstance(cp_name, CONSTANT_Utf8)
         if cp_name.info == b'Code':
             return Code(a.info)
@@ -45,7 +45,9 @@ def load_classes(classpath: str) -> Dict[str, ClassFile]:
     ret = {}
     for f in files:
         cf = read_classfile(f)
-        class_name = cf.constant_pool[cf.constant_pool[cf.this_class].name_index].info.decode()
+        cp_class: CONSTANT_Class = cf.constant_pool[cf.this_class]
+        cp_name_utf8: CONSTANT_Utf8 = cf.constant_pool[cp_class.name_index]
+        class_name: str = cp_name_utf8.info.decode()
         ret[class_name] = cf
     return ret
 
@@ -55,9 +57,7 @@ def execute(code: Code, cfs: Dict[str, ClassFile], _class: str, local_variables)
     with mmap.mmap(-1, len(code.code)) as mm:
         mm.write(code.code)
         mm.seek(0)
-        stack = []
-        return_value = None
-        # local_variables = [None for _ in range(max_locals)]
+        stack: List[Any] = []
         while True:
             opcode: bytes = mm.read(1)
 
@@ -97,13 +97,13 @@ def execute(code: Code, cfs: Dict[str, ClassFile], _class: str, local_variables)
             elif opcode == b'\x12':
                 logging.info('OPCODE: ldc')
                 pool_index = parse_int(mm.read(1))
-                symbol_name_index = c.constant_pool[pool_index]
+                symbol_name_index: Union[CONSTANT_String, CONSTANT_Integer] = c.constant_pool[pool_index]
                 if isinstance(symbol_name_index, CONSTANT_String):
-                    string = c.constant_pool[symbol_name_index.string_index].info.decode()
+                    cp_str: CONSTANT_Utf8 = c.constant_pool[symbol_name_index.string_index]
+                    string = cp_str.info.decode()
                     stack.append(string)
                 elif isinstance(symbol_name_index, CONSTANT_Integer):
-                    value = symbol_name_index.value
-                    stack.append(value)
+                    stack.append(symbol_name_index.value)
                 else:
                     raise Exception(f'unexpected constant {symbol_name_index}')
             elif opcode == b'\x15':
