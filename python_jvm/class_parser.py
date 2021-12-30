@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field  # , KW_ONLY
-from typing import List
+from typing import Dict, List
 from python_jvm.util import parse_int
 
 
@@ -10,7 +10,7 @@ class REPR:
 
 
 class CONSTANT(REPR):
-    cp_index: bytes
+    pass
 
 
 class CONSTANT_Methodref(CONSTANT):
@@ -112,12 +112,10 @@ class Code(REPR):
 
 @dataclass
 class ClassFile:
-    # _: KW_ONLY
     magic: bytes  # 4 bytes
     minor_version: int  # 2bytes
     major_version: int  # 2bytes
-    constant_pool_count: bytes  # 2bytes
-    constant_pool: List[CONSTANT] = field(default_factory=list)
+    constant_pool: Dict[int, CONSTANT] = field(default_factory=dict)
     access_flags: bytes = field(default_factory=bytes)  # 2bytes
     this_class: int = field(default_factory=int)  # 2bytes
     super_class: bytes = field(default_factory=bytes)  # 2bytes
@@ -159,13 +157,12 @@ def read_classfile(filepath: str) -> ClassFile:
             magic=f.read(4),
             minor_version=parse_int(f.read(2)),
             major_version=parse_int(f.read(2)),
-            constant_pool_count=parse_int(f.read(2))
         )
-        for cpi in range(c.constant_pool_count - 1):
+        constant_pool_count = parse_int(f.read(2)) - 1
+        for cpi in range(constant_pool_count):
             cpt = constant_pool_type(f.read(1))
             cp = cpt(f)
-            cp.index = cpi + 1
-            c.constant_pool.append(cp)
+            c.constant_pool[cpi + 1] = cp
 
         c.access_flags = f.read(2)
         c.this_class = parse_int(f.read(2))

@@ -1,7 +1,7 @@
 import mmap
 from textwrap import dedent
-from typing import Dict
-from python_jvm.class_parser import (CONSTANT_Integer, Code,
+from typing import Dict, Optional
+from python_jvm.class_parser import (CONSTANT_Integer, CONSTANT_String, Code,
                                      ClassFile,
                                      Method,
                                      CONSTANT_Utf8,
@@ -20,20 +20,20 @@ std_method = {
 }
 
 
-def find_method(cfs: Dict[str, ClassFile], _class: str, name: str) -> Method:
+def find_method(cfs: Dict[str, ClassFile], _class: str, name: str) -> Optional[Method]:
     c = cfs[_class]
     for m in c.methods:
-        cp_name = c.constant_pool[m.name_index - 1]
+        cp_name = c.constant_pool[m.name_index]
         assert isinstance(cp_name, CONSTANT_Utf8)
         if cp_name.info == name.encode():
             return m
     return None
 
 
-def find_code(m: Method, cfs: Dict[str, ClassFile], _class: str) -> Code:
+def find_code(m: Method, cfs: Dict[str, ClassFile], _class: str) -> Optional[Code]:
     c = cfs[_class]
     for a in m.attribute_info:
-        cp_name = c.constant_pool[a.attribute_name_index - 1]
+        cp_name = c.constant_pool[a.attribute_name_index]
         assert isinstance(cp_name, CONSTANT_Utf8)
         if cp_name.info == b'Code':
             return Code(a.info)
@@ -45,7 +45,7 @@ def load_classes(classpath: str) -> Dict[str, ClassFile]:
     ret = {}
     for f in files:
         cf = read_classfile(f)
-        class_name = cf.constant_pool[cf.constant_pool[cf.this_class - 1].name_index - 1].info.decode()
+        class_name = cf.constant_pool[cf.constant_pool[cf.this_class].name_index].info.decode()
         ret[class_name] = cf
     return ret
 
@@ -97,15 +97,15 @@ def execute(code: Code, cfs: Dict[str, ClassFile], _class: str, local_variables)
             elif opcode == b'\x12':
                 logging.info('OPCODE: ldc')
                 pool_index = parse_int(mm.read(1))
-                symbol_name_index = c.constant_pool[pool_index - 1]
-                if isinstance(symbol_name_index, CONSTANT_Utf8):
-                    string = c.constant_pool[symbol_name_index.string_index - 1].info.decode()
+                symbol_name_index = c.constant_pool[pool_index]
+                if isinstance(symbol_name_index, CONSTANT_String):
+                    string = c.constant_pool[symbol_name_index.string_index].info.decode()
                     stack.append(string)
                 elif isinstance(symbol_name_index, CONSTANT_Integer):
                     value = symbol_name_index.value
                     stack.append(value)
                 else:
-                    raise Exception()
+                    raise Exception(f'unexpected constant {symbol_name_index}')
             elif opcode == b'\x15':
                 logging.info('OPCODE: iload')
                 index = parse_int(mm.read(1))
@@ -201,11 +201,11 @@ def execute(code: Code, cfs: Dict[str, ClassFile], _class: str, local_variables)
             elif opcode == b'\xb2':
                 logging.info('OPCODE: getstatic')
                 pool_index = parse_int(mm.read(2))
-                symbol_name: CONSTANT_Fieldref = c.constant_pool[pool_index - 1]
+                symbol_name: CONSTANT_Fieldref = c.constant_pool[pool_index]
                 assert isinstance(symbol_name, CONSTANT_Fieldref)
-                callee_class = c.constant_pool[c.constant_pool[symbol_name.class_index - 1].name_index - 1].info.decode()
-                field = c.constant_pool[c.constant_pool[symbol_name.name_and_type_index - 1].name_index - 1].info.decode()
-                method_return = c.constant_pool[c.constant_pool[symbol_name.name_and_type_index - 1].descriptor_index - 1].info.decode()
+                callee_class = c.constant_pool[c.constant_pool[symbol_name.class_index].name_index].info.decode()
+                field = c.constant_pool[c.constant_pool[symbol_name.name_and_type_index].name_index].info.decode()
+                method_return = c.constant_pool[c.constant_pool[symbol_name.name_and_type_index].descriptor_index].info.decode()
                 logging.debug(f'callee info, {callee_class}, {field}, {method_return}')
 
                 stack.append({
@@ -218,11 +218,11 @@ def execute(code: Code, cfs: Dict[str, ClassFile], _class: str, local_variables)
             elif opcode == b'\xb6':
                 logging.info('OPCODE: invokevirtual')
                 pool_index = parse_int(mm.read(2))
-                symbol_name_index = c.constant_pool[pool_index - 1]
+                symbol_name_index = c.constant_pool[pool_index]
 
-                callee = c.constant_pool[symbol_name_index.name_and_type_index - 1]
-                callee_method = c.constant_pool[callee.name_index - 1].info.decode()  # println
-                args_exp = c.constant_pool[callee.descriptor_index - 1].info.decode()
+                callee = c.constant_pool[symbol_name_index.name_and_type_index]
+                callee_method = c.constant_pool[callee.name_index].info.decode()  # println
+                args_exp = c.constant_pool[callee.descriptor_index].info.decode()
 
                 logging.debug(f'args_exp: {args_exp}')
                 args = []
@@ -244,15 +244,16 @@ def execute(code: Code, cfs: Dict[str, ClassFile], _class: str, local_variables)
                 logging.debug(f'indexbyte1 {indexbyte1} indexbyte2 {indexbyte2}')
                 callee_cp_index = int.from_bytes((indexbyte1 << 8 | indexbyte2).to_bytes(2, byteorder='big'), signed=True, byteorder='big')
                 logging.debug(f'callee_cp_index {callee_cp_index}')
-                callee_class = c.constant_pool[c.constant_pool[c.constant_pool[callee_cp_index - 1].class_index - 1].name_index - 1].info.decode()
-                callee_method = c.constant_pool[c.constant_pool[c.constant_pool[callee_cp_index - 1].name_and_type_index - 1].name_index - 1].info.decode()
+                callee_class = c.constant_pool[c.constant_pool[c.constant_pool[callee_cp_index].class_index].name_index].info.decode()
+                callee_method = c.constant_pool[c.constant_pool[c.constant_pool[callee_cp_index].name_and_type_index].name_index].info.decode()
                 logging.debug(f'invokestatic {callee_class}.{callee_method}')
 
                 callee_method_obj = find_method(cfs, callee_class, callee_method)
+                assert callee_method_obj is not None, f"{callee_class}.{callee_method} not found"
                 callee_code = find_code(callee_method_obj, cfs, callee_class)
 
                 args = [None for _ in range(callee_code.max_locals)]
-                callee_descriptor_exp = cfs[callee_class].constant_pool[callee_method_obj.descriptor_index - 1].info.decode()
+                callee_descriptor_exp = cfs[callee_class].constant_pool[callee_method_obj.descriptor_index].info.decode()
                 n_args = 1 if '(I)' in callee_descriptor_exp else 2 if '(II)' in callee_descriptor_exp else 0
                 for i in range(n_args):
                     args[i] = stack.pop()

@@ -7,5 +7,6 @@ logging.basicConfig(
 
 cfs = load_classes('./*.class')
 main_method = find_method(cfs, 'HelloWorld', 'main')
+assert main_method is not None
 main_method_code = find_code(main_method, cfs, 'HelloWorld')
 execute(main_method_code, cfs, 'HelloWorld', [None for _ in range(main_method_code.max_locals)])
