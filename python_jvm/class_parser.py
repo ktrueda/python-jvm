@@ -3,9 +3,9 @@ from typing import List
 from python_jvm.util import parse_int
 import logging
 from textwrap import dedent
-level = logging.DEBUG
+level = logging.WARN
 logging.basicConfig(
-    encoding='utf-8', 
+    # encoding='utf-8', 
     level=level)
 # from struct import unpack
 filename = "./HelloWorld.class"
@@ -45,6 +45,12 @@ class CONSTANT_Utf8(CONSTANT):
     def __init__(self, f):
         length = parse_int(f.read(2))
         self.info = f.read(length)
+
+class CONSTANT_Integer(CONSTANT):
+    value: int
+    def __init__(self, f):
+        self.value = parse_int(f.read(4))
+
 
 class CONSTANT_Fieldref(CONSTANT):
     class_index: int # 2 bytes
@@ -103,7 +109,7 @@ class ClassFile:
     constant_pool_count: bytes #2bytes
     constant_pool: List[CONSTANT] = field(default_factory=list)
     access_flags: bytes = field(default_factory=bytes)# 2bytes
-    this_class: bytes = field(default_factory=bytes)# 2bytes
+    this_class: int = field(default_factory=int)# 2bytes
     super_class: bytes = field(default_factory=bytes)# 2bytes
     interfaces_count: int = field(default_factory=int)# 2bytes
     # skip interfaces 
@@ -118,6 +124,8 @@ def constant_pool_type(b: bytes) -> type:
     i = parse_int(b)
     if i == 1:
         return CONSTANT_Utf8
+    elif i == 3:
+        return CONSTANT_Integer
     elif i == 7:
         return CONSTANT_Class
     elif i == 8:
@@ -152,7 +160,7 @@ def read_classfile(filepath: str) -> ClassFile:
             c.constant_pool.append(cp)
         
         c.access_flags = f.read(2)
-        c.this_class = f.read(2)
+        c.this_class = parse_int(f.read(2))
         c.super_class = f.read(2)
         c.interfaces_count = parse_int(f.read(2))
         c.fields_count = parse_int(f.read(2))
@@ -166,15 +174,3 @@ def read_classfile(filepath: str) -> ClassFile:
         for _ in range(c.attributes_count):
             c.attributes.append(Attribute(f))
     return c
-
-if __name__ == '__main__':
-
-    c = read_classfile(filename) 
-    logging.debug(f'Class File: {c}')
-
-
-    main_method = find_method(c, 'main')
-    main_code = find_code(main_method, c)
-    # hex_exp = "".join([f"{i:02x} " for i in main_code])
-    # logging.debug(f'main code {hex_exp}')
-    run(main_code, c, [None for _ in range(main_code.max_locals)])

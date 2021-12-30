@@ -1,7 +1,14 @@
 import mmap
 from textwrap import dedent
-from python_jvm.class_parser import Code, ClassFile, Method, CONSTANT_Utf8, CONSTANT_Fieldref
+from typing import Dict
+from python_jvm.class_parser import (CONSTANT_Integer, Code, 
+    ClassFile, 
+    Method, 
+    CONSTANT_Utf8, 
+    CONSTANT_Fieldref, 
+    read_classfile)
 import logging
+import glob
 from python_jvm.util import hexdump, parse_int
 
 std_method = {
@@ -12,7 +19,8 @@ std_method = {
     }
 }
 
-def find_method(c :ClassFile, name:str) -> Method:
+def find_method(cfs :Dict[str, ClassFile], _class:str, name:str) -> Method:
+    c = cfs[_class]
     for m in c.methods:
         cp_name = c.constant_pool[m.name_index-1]
         assert isinstance(cp_name, CONSTANT_Utf8)
@@ -20,7 +28,8 @@ def find_method(c :ClassFile, name:str) -> Method:
             return m
     return None
 
-def find_code(m :Method, c: ClassFile) -> Code:
+def find_code(m :Method, cfs: Dict[str, ClassFile], _class:str) -> Code:
+    c = cfs[_class]
     for a in m.attribute_info:
         cp_name = c.constant_pool[a.attribute_name_index-1]
         assert isinstance(cp_name, CONSTANT_Utf8)
@@ -28,7 +37,17 @@ def find_code(m :Method, c: ClassFile) -> Code:
             return Code(a.info)
     return None
 
-def execute(code: Code, c: ClassFile, local_variables):
+def load_classes(classpath: str) -> Dict[str, ClassFile]:
+    files = glob.glob(classpath)
+    ret = {}
+    for f in files:
+        cf = read_classfile(f)
+        class_name = cf.constant_pool[cf.constant_pool[cf.this_class - 1].name_index-1].info.decode()
+        ret[class_name] = cf
+    return ret
+
+def execute(code: Code, cfs: Dict[str, ClassFile], _class: str, local_variables):
+    c = cfs[_class]
     with mmap.mmap(-1, len(code.code)) as mm:
         mm.write(code.code)
         mm.seek(0)
@@ -75,8 +94,14 @@ def execute(code: Code, c: ClassFile, local_variables):
                 logging.info('OPCODE: ldc')
                 pool_index = parse_int(mm.read(1))
                 symbol_name_index = c.constant_pool[pool_index-1]
-                string = c.constant_pool[symbol_name_index.string_index-1].info.decode()
-                stack.append(string)
+                if isinstance(symbol_name_index, CONSTANT_Utf8):
+                    string = c.constant_pool[symbol_name_index.string_index-1].info.decode()
+                    stack.append(string)
+                elif isinstance(symbol_name_index, CONSTANT_Integer):
+                    value = symbol_name_index.value
+                    stack.append(value)
+                else:
+                    raise Exception()
             elif opcode == b'\x15':
                 logging.info('OPCODE: iload')
                 index = parse_int(mm.read(1))
@@ -219,15 +244,15 @@ def execute(code: Code, c: ClassFile, local_variables):
                 callee_method = c.constant_pool[c.constant_pool[c.constant_pool[callee_cp_index-1].name_and_type_index-1].name_index-1].info.decode()
                 logging.debug(f'invokestatic {callee_class}.{callee_method}')
                 
-                callee_method_obj = find_method(c, callee_method)
-                callee_code = find_code(callee_method_obj, c)
+                callee_method_obj = find_method(cfs, callee_class, callee_method)
+                callee_code = find_code(callee_method_obj, cfs, callee_class)
 
                 args = [None for _ in range(callee_code.max_locals)]
-                callee_descriptor_exp = c.constant_pool[callee_method_obj.descriptor_index-1].info.decode()
+                callee_descriptor_exp = cfs[callee_class].constant_pool[callee_method_obj.descriptor_index-1].info.decode()
                 n_args = 1 if '(I)' in callee_descriptor_exp else 2 if '(II)' in callee_descriptor_exp else 0
                 for i in range(n_args):
                    args[i] = stack.pop()
 
-                stack.append(execute(callee_code, c, args))
+                stack.append(execute(callee_code, cfs, callee_class, args))
             else:
                 raise Exception(f'unknown opcode {opcode}')
