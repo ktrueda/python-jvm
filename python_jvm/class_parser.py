@@ -9,6 +9,7 @@ logging.basicConfig(
     level=level)
 # from struct import unpack
 filename = "./HelloWorld.class"
+classpath = "."
 
 std_method = {
     'java/lang/System': {
@@ -362,35 +363,42 @@ def find_code(m :Method, c: ClassFile) -> Code:
             return Code(a.info)
     return None
 
+def read_classfile(filepath: str) -> ClassFile:
 
-with open(filename, 'rb') as f:
-    # read header
-    c = ClassFile(
-        magic=f.read(4),
-        minor_version=parse_int(f.read(2)),
-        major_version=parse_int(f.read(2)),
-        constant_pool_count=parse_int(f.read(2))
-    )
-    for cpi in range(c.constant_pool_count - 1):
-        cpt = constant_pool_type(f.read(1))
-        cp = cpt(f)
-        cp.index = cpi + 1
-        c.constant_pool.append(cp)
-    
-    c.access_flags = f.read(2)
-    c.this_class = f.read(2)
-    c.super_class = f.read(2)
-    c.interfaces_count = parse_int(f.read(2))
-    c.fields_count = parse_int(f.read(2))
-    c.methods_count = parse_int(f.read(2))
+    with open(filename, 'rb') as f:
+        # read header
+        c = ClassFile(
+            magic=f.read(4),
+            minor_version=parse_int(f.read(2)),
+            major_version=parse_int(f.read(2)),
+            constant_pool_count=parse_int(f.read(2))
+        )
+        for cpi in range(c.constant_pool_count - 1):
+            cpt = constant_pool_type(f.read(1))
+            cp = cpt(f)
+            cp.index = cpi + 1
+            c.constant_pool.append(cp)
+        
+        c.access_flags = f.read(2)
+        c.this_class = f.read(2)
+        c.super_class = f.read(2)
+        c.interfaces_count = parse_int(f.read(2))
+        c.fields_count = parse_int(f.read(2))
+        c.methods_count = parse_int(f.read(2))
 
-    for _ in range(c.methods_count):
-        c.methods.append(Method(f))
+        for _ in range(c.methods_count):
+            c.methods.append(Method(f))
 
-    c.attributes_count = parse_int(f.read(2))
+        c.attributes_count = parse_int(f.read(2))
 
-    for _ in range(c.attributes_count):
-        c.attributes.append(Attribute(f))
+        for _ in range(c.attributes_count):
+            c.attributes.append(Attribute(f))
+    return c
+
+if __name__ == '__main__':
+
+    c = read_classfile(filename) 
+    logging.debug(f'Class File: {c}')
 
 
     main_method = find_method(c, 'main')
