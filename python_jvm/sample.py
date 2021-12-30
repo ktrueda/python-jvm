@@ -1,8 +1,9 @@
 from python_jvm.executer import find_code, load_classes, find_method, execute
 import logging
 logging.basicConfig(
-    # encoding='utf-8', 
+    # encoding='utf-8',
     level=logging.WARN)
+
 
 cfs = load_classes('./*.class')
 main_method = find_method(cfs, 'HelloWorld', 'main')
