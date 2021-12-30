@@ -1,7 +1,7 @@
 import mmap
 from textwrap import dedent
 from typing import Any, Dict, List, Optional, Union
-from python_jvm.class_parser import (CONSTANT_Class, CONSTANT_Integer, CONSTANT_String, Code,
+from python_jvm.class_parser import (CONSTANT_Class, CONSTANT_Integer, CONSTANT_NameAndType, CONSTANT_String, Code,
                                      ClassFile,
                                      Method,
                                      CONSTANT_Utf8,
@@ -203,11 +203,19 @@ def execute(code: Code, cfs: Dict[str, ClassFile], _class: str, local_variables)
                 pool_index = parse_int(mm.read(2))
                 symbol_name: CONSTANT_Fieldref = c.constant_pool[pool_index]
                 assert isinstance(symbol_name, CONSTANT_Fieldref)
-                callee_class = c.constant_pool[c.constant_pool[symbol_name.class_index].name_index].info.decode()
-                field = c.constant_pool[c.constant_pool[symbol_name.name_and_type_index].name_index].info.decode()
-                method_return = c.constant_pool[c.constant_pool[symbol_name.name_and_type_index].descriptor_index].info.decode()
-                logging.debug(f'callee info, {callee_class}, {field}, {method_return}')
+                cp_class_callee: CONSTANT_Class = c.constant_pool[symbol_name.class_index]
+                cp_class_callee_name: CONSTANT_Utf8 = c.constant_pool[cp_class_callee.name_index]
+                callee_class: str = cp_class_callee_name.info.decode()
 
+                cp_method_name_type: CONSTANT_NameAndType = c.constant_pool[symbol_name.name_and_type_index]
+                cp_method_name: CONSTANT_Utf8 = c.constant_pool[cp_method_name_type.name_index]
+                field: str = cp_method_name.info.decode()
+
+                cp_method_descriptor: CONSTANT_Utf8 = c.constant_pool[cp_method_name_type.descriptor_index]
+                method_return: str = cp_method_descriptor.info.decode()
+                logging.debug(f'callee info, {callee_class}, {field}, {method_return}')
+                
+                # TODO
                 stack.append({
                     'callable': {
                         'class': callee_class,

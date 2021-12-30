@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field  # , KW_ONLY
-from typing import Dict, List, Type, TypeVar
+from typing import Dict, Generic, List, Type, TypeVar
 from python_jvm.util import parse_int
 
 
@@ -111,12 +111,13 @@ class Code(REPR):
 
 
 tCONSTANT = TypeVar('tCONSTANT',
-                    CONSTANT_Class,
-                    CONSTANT_Fieldref,
-                    CONSTANT_Integer,
-                    CONSTANT_Methodref,
-                    CONSTANT_NameAndType,
-                    CONSTANT_String
+                    # CONSTANT_Class,
+                    # CONSTANT_Fieldref,
+                    # CONSTANT_Integer,
+                    # CONSTANT_Methodref,
+                    # CONSTANT_NameAndType,
+                    # CONSTANT_String,
+                    bound=CONSTANT
                     )
 
 
@@ -125,7 +126,7 @@ class ClassFile:
     magic: bytes  # 4 bytes
     minor_version: int  # 2bytes
     major_version: int  # 2bytes
-    constant_pool: Dict[int, tCONSTANT] = field(default_factory=dict)
+    constant_pool: Dict[int, tCONSTANT] = field(default_factory=dict)  # type: ignore
     access_flags: bytes = field(default_factory=bytes)  # 2bytes
     this_class: int = field(default_factory=int)  # 2bytes
     super_class: bytes = field(default_factory=bytes)  # 2bytes
