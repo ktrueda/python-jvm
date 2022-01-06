@@ -9,4 +9,8 @@ public class Person {
   public String getName(){
     return this.name;
   }
+
+  public void hoge(int[] arg){
+    
+  }
 }
