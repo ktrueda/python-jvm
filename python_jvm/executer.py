@@ -52,12 +52,19 @@ def load_classes(classpath: str) -> Dict[str, ClassFile]:
     return ret
 
 
+def _merge_unsigned_bytes(byte1: int, byte2: int) -> int:
+    return int.from_bytes((byte1 << 8 | byte2).to_bytes(2, byteorder='big'), signed=True, byteorder='big')
+
+
 def execute(code: Code, cfs: Dict[str, ClassFile], _class: str, local_variables):
     c = cfs[_class]
     with mmap.mmap(-1, len(code.code)) as mm:
         mm.write(code.code)
         mm.seek(0)
+
         stack: List[Any] = []
+        heap: Dict[Any, Any] = {}
+
         while True:
             opcode: bytes = mm.read(1)
 
@@ -214,7 +221,7 @@ def execute(code: Code, cfs: Dict[str, ClassFile], _class: str, local_variables)
                 cp_method_descriptor: CONSTANT_Utf8 = c.constant_pool[cp_method_name_type.descriptor_index]
                 method_return: str = cp_method_descriptor.info.decode()
                 logging.debug(f'callee info, {callee_class}, {field}, {method_return}')
-                
+
                 # TODO
                 stack.append({
                     'callable': {
@@ -267,5 +274,15 @@ def execute(code: Code, cfs: Dict[str, ClassFile], _class: str, local_variables)
                     args[i] = stack.pop()
 
                 stack.append(execute(callee_code, cfs, callee_class, args))
+            elif opcode == b'\xbb':
+                logging.info('OPCODE: new')
+                indexbyte1 = parse_int(mm.read(1))
+                indexbyte2 = parse_int(mm.read(1))
+                target_class_index = _merge_unsigned_bytes(indexbyte1, indexbyte2)
+                cp_class: CONSTANT_Class = c.constant_pool[target_class_index]
+                cp_class_utf8: CONSTANT_Utf8 = c.constant_pool[cp_class.name_index]
+                cp_class_name: str = cp_class_utf8.info.decode()
+                logging.debug(f"new class #{target_class_index} {cp_class_name}")
+
             else:
                 raise Exception(f'unknown opcode {opcode}')

@@ -1,31 +1,33 @@
 class HelloWorld{
   public static void main(String[] args){
-    System.out.println("hello");
-    int i = 1;
-    int j = i + 2;
-    System.out.println(j);
-    System.out.println(3+4);
+    // System.out.println("hello");
+    // int i = 1;
+    // int j = i + 2;
+    // System.out.println(j);
+    // System.out.println(3+4);
 
-    for(int l = 0; l < 2; l++){
-      System.out.println("progress");
-    }
-    int s = 0;
-    for(int l = 1; l < 5; l++){
-      s += l;
-    }
-    System.out.println(s);
-    show();
-    int c = constant();
-    System.out.println(c);
+    // for(int l = 0; l < 2; l++){
+    //   System.out.println("progress");
+    // }
+    // int s = 0;
+    // for(int l = 1; l < 5; l++){
+    //   s += l;
+    // }
+    // System.out.println(s);
+    // show();
+    // int c = constant();
+    // System.out.println(c);
 
-    int r = identity(12345);
-    System.out.println(r);
+    // int r = identity(12345);
+    // System.out.println(r);
 
-    System.out.println(add(1,30));
+    // System.out.println(add(1,30));
 
-    System.out.println(fibonacci(15));
+    // System.out.println(fibonacci(15));
     
-    Print.print(98765);
+    // Print.print(98765);
+
+    newInstance();
   }
 
   public static void show(){
@@ -54,4 +56,7 @@ class HelloWorld{
     }
   }
 
+  public static void newInstance(){
+    Person p = new Person("Chisato", 17);
+  }
 }

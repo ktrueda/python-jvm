@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field  # , KW_ONLY
 from typing import Dict, Generic, List, Type, TypeVar
 from python_jvm.util import parse_int
+import logging
 
 
 class REPR:
@@ -97,6 +98,23 @@ class Method(REPR):
             self.attribute_info.append(Attribute(f))
 
 
+class Field(REPR):
+    access_flag: bytes
+    name_index: int
+    descriptor_index: int
+    attributes_count: int
+    attribute_info: List[Attribute]
+
+    def __init__(self, f):
+        self.access_flags = f.read(2)
+        self.name_index = parse_int(f.read(2))
+        self.descriptor_index = parse_int(f.read(2))
+        self.attribute_count = parse_int(f.read(2))
+        self.attribute_info = []
+        for _ in range(self.attribute_count):
+            self.attribute_info.append(Attribute(f))
+
+
 class Code(REPR):
     max_stack: int
     max_locals: int
@@ -133,7 +151,7 @@ class ClassFile:
     interfaces_count: int = field(default_factory=int)  # 2bytes
     # skip interfaces
     fields_count: int = field(default_factory=int)  # 2bytes
-    # skip fields
+    fields: List[Field] = field(default_factory=list)
     methods_count: int = field(default_factory=int)  # 2bytes
     methods: List[Method] = field(default_factory=list)
     attributes_count: int = field(default_factory=int)  # 2bytes
@@ -180,6 +198,8 @@ def read_classfile(filepath: str) -> ClassFile:
         c.super_class = f.read(2)
         c.interfaces_count = parse_int(f.read(2))
         c.fields_count = parse_int(f.read(2))
+        for _ in range(c.fields_count):
+            c.fields.append(Field(f))
         c.methods_count = parse_int(f.read(2))
 
         for _ in range(c.methods_count):
