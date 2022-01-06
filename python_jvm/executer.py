@@ -1,7 +1,8 @@
 import mmap
+import copy
 from textwrap import dedent
 from typing import Any, Dict, List, Optional, Union
-from python_jvm.class_parser import (CONSTANT_Class, CONSTANT_Integer, CONSTANT_NameAndType, CONSTANT_String, Code,
+from python_jvm.class_parser import (CONSTANT_Class, CONSTANT_Integer, CONSTANT_Methodref, CONSTANT_NameAndType, CONSTANT_String, Code,
                                      ClassFile,
                                      Method,
                                      CONSTANT_Utf8,
@@ -54,6 +55,13 @@ def load_classes(classpath: str) -> Dict[str, ClassFile]:
 
 def _merge_unsigned_bytes(byte1: int, byte2: int) -> int:
     return int.from_bytes((byte1 << 8 | byte2).to_bytes(2, byteorder='big'), signed=True, byteorder='big')
+
+
+def _new_instance(cfs: Dict[str, ClassFile], _class: str) -> Dict:
+    return {
+        'name': "Name",
+        'age': 18
+    }
 
 
 def execute(code: Code, cfs: Dict[str, ClassFile], _class: str, local_variables):
@@ -143,6 +151,11 @@ def execute(code: Code, cfs: Dict[str, ClassFile], _class: str, local_variables)
             elif opcode == b'\x3e':
                 logging.info('OPCODE: istore_3')
                 local_variables[3] = stack.pop()
+            elif opcode == b'\x59':
+                logging.info('OPCODE: dup')
+                val = stack.pop()
+                copy_val = copy.deepcopy(val)
+                stack.append(copy_val)
             elif opcode == b'\x60':
                 logging.info('OPCODE: iadd')
                 val1 = stack.pop()
@@ -230,6 +243,9 @@ def execute(code: Code, cfs: Dict[str, ClassFile], _class: str, local_variables)
                         'return': method_return
                     }
                 })
+            elif opcode == b'\xb1':
+                logging.info('OPCODE: return')
+                return
             elif opcode == b'\xb6':
                 logging.info('OPCODE: invokevirtual')
                 pool_index = parse_int(mm.read(2))
@@ -249,9 +265,21 @@ def execute(code: Code, cfs: Dict[str, ClassFile], _class: str, local_variables)
 
                 std_method[method['callable']['class']][method['callable']['field']][callee_method](args)
                 return_value = 'aaa'
-            elif opcode == b'\xb1':
-                logging.info('OPCODE: return')
-                return
+            elif opcode == b'\xb7':
+                logging.info('OPCODE: invokespecial')
+                indexbyte1 = parse_int(mm.read(1))
+                indexbyte2 = parse_int(mm.read(1))
+                cp_callee_index = _merge_unsigned_bytes(indexbyte1, indexbyte2)
+
+                cp_callee: CONSTANT_Methodref = c.constant_pool[cp_callee_index]
+                cp_callee_class: CONSTANT_Class = c.constant_pool[cp_callee.class_index]
+                cp_callee_class_utf8: CONSTANT_Utf8 = c.constant_pool[cp_callee_class.name_index]
+                callee_class: str = cp_callee_class_utf8.info.decode()
+
+                cp_callee_method: CONSTANT_NameAndType = c.constant_pool[cp_callee.name_and_type_index]
+                callee_method:str = c.constant_pool[cp_callee_method.name_index].info.decode()
+                logging.debug(f'invokespecial {callee_class}.{callee_method}')
+
             elif opcode == b'\xb8':
                 logging.info('OPCODE: invokestatic')
                 indexbyte1 = parse_int(mm.read(1))
@@ -281,8 +309,12 @@ def execute(code: Code, cfs: Dict[str, ClassFile], _class: str, local_variables)
                 target_class_index = _merge_unsigned_bytes(indexbyte1, indexbyte2)
                 cp_class: CONSTANT_Class = c.constant_pool[target_class_index]
                 cp_class_utf8: CONSTANT_Utf8 = c.constant_pool[cp_class.name_index]
-                cp_class_name: str = cp_class_utf8.info.decode()
-                logging.debug(f"new class #{target_class_index} {cp_class_name}")
+                class_name: str = cp_class_utf8.info.decode()
+                logging.debug(f"new class #{target_class_index} {class_name}")
+
+                heap[len(heap)] = _new_instance(cfs, class_name)
+                heap_index = len(heap) - 1
+                stack.append(heap_index)
 
             else:
                 raise Exception(f'unknown opcode {opcode}')
