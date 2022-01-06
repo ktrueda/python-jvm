@@ -10,7 +10,7 @@ from python_jvm.class_parser import (CONSTANT_Class, CONSTANT_Integer, CONSTANT_
                                      read_classfile)
 import logging
 import glob
-from python_jvm.util import hexdump, parse_int
+from python_jvm.util import hexdump, parse_arg_num, parse_int
 
 std_method = {
     'java/lang/System': {
@@ -59,19 +59,19 @@ def _merge_unsigned_bytes(byte1: int, byte2: int) -> int:
 
 def _new_instance(cfs: Dict[str, ClassFile], _class: str) -> Dict:
     return {
-        'name': "Name",
-        'age': 18
+        'name': None,
+        'age': None
     }
 
 
-def execute(code: Code, cfs: Dict[str, ClassFile], _class: str, local_variables):
+def execute(code: Code, cfs: Dict[str, ClassFile], _class: str, local_variables, heap: Dict[Any, Any]):
     c = cfs[_class]
     with mmap.mmap(-1, len(code.code)) as mm:
         mm.write(code.code)
         mm.seek(0)
 
         stack: List[Any] = []
-        heap: Dict[Any, Any] = {}
+        heap: Dict[Any, Any] = heap if heap else {}
 
         while True:
             opcode: bytes = mm.read(1)
@@ -81,6 +81,7 @@ def execute(code: Code, cfs: Dict[str, ClassFile], _class: str, local_variables)
             current position {mm.tell() - 1}
             opcode {hexdump(opcode)}
             stack {stack}
+            heap {heap}
             local_variables {local_variables}
             ########################
             '''))
@@ -137,6 +138,9 @@ def execute(code: Code, cfs: Dict[str, ClassFile], _class: str, local_variables)
             elif opcode == b'\x1d':
                 logging.info('OPCODE: iload_3')
                 stack.append(local_variables[3])
+            elif opcode == b'\x2a':
+                logging.info('OPCODE: aload_0')
+                stack.append(heap[0])
             elif opcode == b'\x36':
                 logging.info('OPCODE: istore')
                 val = stack.pop()
@@ -277,8 +281,22 @@ def execute(code: Code, cfs: Dict[str, ClassFile], _class: str, local_variables)
                 callee_class: str = cp_callee_class_utf8.info.decode()
 
                 cp_callee_method: CONSTANT_NameAndType = c.constant_pool[cp_callee.name_and_type_index]
-                callee_method:str = c.constant_pool[cp_callee_method.name_index].info.decode()
+                callee_method: str = c.constant_pool[cp_callee_method.name_index].info.decode()
                 logging.debug(f'invokespecial {callee_class}.{callee_method}')
+
+                callee_method_obj = find_method(cfs, callee_class, callee_method)
+                assert callee_method_obj is not None, f"{callee_class}.{callee_method} not found"
+                callee_code = find_code(callee_method_obj, cfs, callee_class)
+
+                args = [None for _ in range(callee_code.max_locals)]
+                callee_descriptor_exp = cfs[callee_class].constant_pool[callee_method_obj.descriptor_index].info.decode()
+                n_args = parse_arg_num(callee_descriptor_exp)
+                logging.debug('calee_descriptor', callee_descriptor_exp, n_args)
+                args[0] = stack.pop()  # object ref
+                for i in range(n_args):
+                    args[i + 1] = stack.pop()
+
+                stack.append(execute(callee_code, cfs, callee_class, args, heap))
 
             elif opcode == b'\xb8':
                 logging.info('OPCODE: invokestatic')
@@ -301,7 +319,7 @@ def execute(code: Code, cfs: Dict[str, ClassFile], _class: str, local_variables)
                 for i in range(n_args):
                     args[i] = stack.pop()
 
-                stack.append(execute(callee_code, cfs, callee_class, args))
+                stack.append(execute(callee_code, cfs, callee_class, args, {}))
             elif opcode == b'\xbb':
                 logging.info('OPCODE: new')
                 indexbyte1 = parse_int(mm.read(1))

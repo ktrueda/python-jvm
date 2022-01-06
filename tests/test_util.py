@@ -10,7 +10,8 @@ from python_jvm.util import parse_arg_num
     ('([Ljava/lang/String;)V', 1),  # 1 arg, void return
     ('([Ljava/lang/String;Ljava/lang/String;)V', 2),  # 2 arg, void return
     ('([I)V', 1),  # 1 array arg, void return
-    ('([I[I)V', 2)  # 2 array arg, void return
+    ('([I[I)V', 2),  # 2 array arg, void return
+    ('(Ljava/lang/String;I)V', 2)
 ])
 def test_parse_arg_num(descriptor, expected):
     '''
