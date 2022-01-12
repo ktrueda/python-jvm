@@ -140,7 +140,10 @@ def execute(code: Code, cfs: Dict[str, ClassFile], _class: str, local_variables,
                 stack.append(local_variables[3])
             elif opcode == b'\x2a':
                 logging.info('OPCODE: aload_0')
-                stack.append(heap[0])
+                stack.append(local_variables[0])
+            elif opcode == b'\x2b':
+                logging.info('OPCODE: aload_1')
+                stack.append(local_variables[1])
             elif opcode == b'\x36':
                 logging.info('OPCODE: istore')
                 val = stack.pop()
@@ -284,19 +287,21 @@ def execute(code: Code, cfs: Dict[str, ClassFile], _class: str, local_variables,
                 callee_method: str = c.constant_pool[cp_callee_method.name_index].info.decode()
                 logging.debug(f'invokespecial {callee_class}.{callee_method}')
 
-                callee_method_obj = find_method(cfs, callee_class, callee_method)
-                assert callee_method_obj is not None, f"{callee_class}.{callee_method} not found"
-                callee_code = find_code(callee_method_obj, cfs, callee_class)
+                if callee_class == 'java/lang/Object' and callee_method == '<init>':
+                    pass  # TODO
+                else:
+                    callee_method_obj = find_method(cfs, callee_class, callee_method)
+                    assert callee_method_obj is not None, f"{callee_class}.{callee_method} not found"
+                    callee_code = find_code(callee_method_obj, cfs, callee_class)
 
-                args = [None for _ in range(callee_code.max_locals)]
-                callee_descriptor_exp = cfs[callee_class].constant_pool[callee_method_obj.descriptor_index].info.decode()
-                n_args = parse_arg_num(callee_descriptor_exp)
-                logging.debug('calee_descriptor', callee_descriptor_exp, n_args)
-                args[0] = stack.pop()  # object ref
-                for i in range(n_args):
-                    args[i + 1] = stack.pop()
-
-                stack.append(execute(callee_code, cfs, callee_class, args, heap))
+                    args = [None for _ in range(callee_code.max_locals)]
+                    callee_descriptor_exp = cfs[callee_class].constant_pool[callee_method_obj.descriptor_index].info.decode()
+                    n_args = parse_arg_num(callee_descriptor_exp)
+                    logging.debug('calee_descriptor', callee_descriptor_exp, n_args)
+                    args[0] = stack.pop()  # object ref
+                    for i in range(n_args):
+                        args[i + 1] = stack.pop()
+                    stack.append(execute(callee_code, cfs, callee_class, args, heap))
 
             elif opcode == b'\xb8':
                 logging.info('OPCODE: invokestatic')
