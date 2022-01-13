@@ -158,6 +158,12 @@ def execute(code: Code, cfs: Dict[str, ClassFile], _class: str, local_variables,
             elif opcode == b'\x3e':
                 logging.info('OPCODE: istore_3')
                 local_variables[3] = stack.pop()
+            elif opcode == b'\x4b':
+                logging.info('OPCODE: astore_0')
+                local_variables[0] = stack.pop()
+            elif opcode == b'\x4c':
+                logging.info('OPCODE: astore_1')
+                local_variables[1] = stack.pop()
             elif opcode == b'\x59':
                 logging.info('OPCODE: dup')
                 val = stack.pop()
