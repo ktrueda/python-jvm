@@ -253,6 +253,21 @@ def execute(code: Code, cfs: Dict[str, ClassFile], _class: str, local_variables,
             elif opcode == b'\xb1':
                 logging.info('OPCODE: return')
                 return
+            elif opcode == b'\xb5':
+                logging.info('OPCODE: putfield')
+                indexbyte1 = parse_int(mm.read(1))
+                indexbyte2 = parse_int(mm.read(1))
+                cp_field_ref_index = _merge_unsigned_bytes(indexbyte1, indexbyte2)
+                cp_field_ref: CONSTANT_Fieldref = c.constant_pool[cp_field_ref_index]
+                cp_field_name_type: CONSTANT_NameAndType = c.constant_pool[cp_field_ref.name_and_type_index]
+                cp_field_name_utf8: CONSTANT_Utf8 = c.constant_pool[cp_field_name_type.name_index]
+                cp_field_name: str = cp_field_name_utf8.info.decode()
+
+                value = stack.pop()
+                heap_id = stack.pop()
+                logging.debug(f'cp_field_name: {cp_field_name} heap_id:{heap_id} value:{value}')
+                heap[heap_id][cp_field_name] = value
+
             elif opcode == b'\xb6':
                 logging.info('OPCODE: invokevirtual')
                 pool_index = parse_int(mm.read(2))
@@ -270,7 +285,7 @@ def execute(code: Code, cfs: Dict[str, ClassFile], _class: str, local_variables,
                 method = stack.pop()
                 logging.debug(f'method: {method} args: {args}')
 
-                std_method[method['callable']['class']][method['callable']['field']][callee_method](args)
+                std_method[method['callable']['class']][method['callable']['field']][callee_method](args[::-1])
                 return_value = 'aaa'
             elif opcode == b'\xb7':
                 logging.info('OPCODE: invokespecial')
@@ -287,21 +302,21 @@ def execute(code: Code, cfs: Dict[str, ClassFile], _class: str, local_variables,
                 callee_method: str = c.constant_pool[cp_callee_method.name_index].info.decode()
                 logging.debug(f'invokespecial {callee_class}.{callee_method}')
 
-                if callee_class == 'java/lang/Object' and callee_method == '<init>':
-                    pass  # TODO
-                else:
-                    callee_method_obj = find_method(cfs, callee_class, callee_method)
-                    assert callee_method_obj is not None, f"{callee_class}.{callee_method} not found"
-                    callee_code = find_code(callee_method_obj, cfs, callee_class)
+                # if callee_class == 'java/lang/Object' and callee_method == '<init>':
+                #     pass  # TODO
+                # else:
+                callee_method_obj = find_method(cfs, callee_class, callee_method)
+                assert callee_method_obj is not None, f"{callee_class}.{callee_method} not found"
+                callee_code = find_code(callee_method_obj, cfs, callee_class)
 
-                    args = [None for _ in range(callee_code.max_locals)]
-                    callee_descriptor_exp = cfs[callee_class].constant_pool[callee_method_obj.descriptor_index].info.decode()
-                    n_args = parse_arg_num(callee_descriptor_exp)
-                    logging.debug('calee_descriptor', callee_descriptor_exp, n_args)
-                    args[0] = stack.pop()  # object ref
-                    for i in range(n_args):
-                        args[i + 1] = stack.pop()
-                    stack.append(execute(callee_code, cfs, callee_class, args, heap))
+                args = [None for _ in range(callee_code.max_locals)]
+                callee_descriptor_exp = cfs[callee_class].constant_pool[callee_method_obj.descriptor_index].info.decode()
+                n_args = parse_arg_num(callee_descriptor_exp)
+                logging.debug(f'calee_descriptor {callee_descriptor_exp}, {n_args}')
+                args[0] = stack.pop()  # object ref
+                for i in range(n_args):
+                    args[i + 1] = stack.pop()
+                stack.append(execute(callee_code, cfs, callee_class, args[::-1], heap))
 
             elif opcode == b'\xb8':
                 logging.info('OPCODE: invokestatic')
