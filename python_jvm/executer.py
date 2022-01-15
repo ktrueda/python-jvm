@@ -277,11 +277,11 @@ def execute(code: Code, cfs: Dict[str, ClassFile], _class: str, local_variables,
             elif opcode == b'\xb6':
                 logging.info('OPCODE: invokevirtual')
                 pool_index = parse_int(mm.read(2))
-                symbol_name_index = c.constant_pool[pool_index]
+                symbol_name_index: CONSTANT_Methodref = c.constant_pool[pool_index]
 
-                callee = c.constant_pool[symbol_name_index.name_and_type_index]
-                callee_method = c.constant_pool[callee.name_index].info.decode()  # println
-                args_exp = c.constant_pool[callee.descriptor_index].info.decode()
+                callee: CONSTANT_NameAndType = c.constant_pool[symbol_name_index.name_and_type_index]
+                callee_method: str = c.constant_pool[callee.name_index].info.decode()  # println
+                args_exp: str = c.constant_pool[callee.descriptor_index].info.decode()
 
                 logging.debug(f'args_exp: {args_exp}')
                 args = []
