@@ -39,10 +39,8 @@ def test_execute_classfile(classfile_path, mocker):
         stdout += str(text) + "\n"
     if main_method:
         mocker.patch("python_jvm.executer.std_method", {
-            'java/lang/System': {
-                'out': {
-                    'println': lambda x: append_stdout(x[0])
-                }
+            'java/io/PrintStream': {
+                'println': lambda x: append_stdout(x[0])
             }
         })
         target_class = ''.join(classfile_path.split('.')[:-1])
