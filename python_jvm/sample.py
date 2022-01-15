@@ -2,7 +2,7 @@ from python_jvm.executer import find_code, load_classes, find_method, execute
 import logging
 logging.basicConfig(
     # encoding='utf-8',
-    level=logging.DEBUG)
+    level=logging.INFO)
 
 
 cfs = load_classes('./*.class')
