@@ -70,6 +70,40 @@ class CONSTANT_String(CONSTANT):
         self.string_index = parse_int(f.read(2))
 
 
+class CONSTANT_InvokeDynamic(CONSTANT):
+    bootstrap_method_att_inex: int
+    name_and_type_index: int
+
+    def __init__(self, f):
+        self.bootstrap_method_att_inex = parse_int(f.read(2))
+        self.name_and_type_index = parse_int(f.read(2))
+
+
+class CONSTANT_InterfaceMethodref(CONSTANT):
+    class_index: int
+    name_and_type_index: int
+
+    def __init__(self, f):
+        self.class_index = parse_int(f.read(2))
+        self.name_and_type_index = parse_int(f.read(2))
+
+
+class CONSTANT_MethodHandle(CONSTANT):
+    reference_kind: int
+    reference_index: int
+
+    def __init__(self, f):
+        self.reference_kind = parse_int(f.read(1))
+        self.reference_index = parse_int(f.read(2))
+
+
+class CONSTANT_MethodType(CONSTANT):
+    descriptor_index: int
+
+    def __init__(self, f):
+        self.descriptor_index = parse_int(f.read(2))
+
+
 class Attribute(REPR):
     attribute_name_index: int
     attribute_length: int
@@ -172,8 +206,16 @@ def constant_pool_type(b: bytes) -> type:
         return CONSTANT_Fieldref
     elif i == 10:
         return CONSTANT_Methodref
+    elif i == 11:
+        return CONSTANT_Methodref
     elif i == 12:
-        return CONSTANT_NameAndType
+        return CONSTANT_InterfaceMethodref
+    elif i == 15:
+        return CONSTANT_MethodHandle
+    elif i == 16:
+        return CONSTANT_MethodType
+    elif i == 18:
+        return CONSTANT_InvokeDynamic
     else:
         raise Exception(f'unknown constant pool type {i}')
 
