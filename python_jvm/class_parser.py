@@ -1,7 +1,8 @@
 from dataclasses import dataclass, field  # , KW_ONLY
 from typing import Dict, Generic, List, Type, TypeVar
-from python_jvm.util import parse_int
+from python_jvm.util import hexdump, parse_int
 import logging
+import mmap
 
 
 class REPR:
@@ -160,6 +161,37 @@ class Code(REPR):
         self.max_locals = parse_int(f[2:4])
         self.code_length = parse_int(f[4:8])
         self.code = f[8:]
+
+
+class BootstrapMethod(REPR):
+    bootstrap_method_ref: int  # 2 bytes
+    num_bootstrap_arguments: int  # 2 bytes
+    bootstrap_arguments: List[int]  # 2bytes * n
+
+    def __init__(self, f):
+        self.bootstrap_method_ref = parse_int(f.read(2))
+        self.num_bootstrap_arguments = parse_int(f.read(2))
+        self.bootstrap_arguments = []
+        for _ in range(self.num_bootstrap_arguments):
+            self.bootstrap_arguments.append(parse_int(f.read(2)))
+
+
+class BootstrapMethods(REPR):
+    '''
+    see https://docs.oracle.com/javase/specs/jvms/se8/html/jvms-4.html#jvms-4.7.23
+    '''
+    num_bootstrap_methods: int  # 2 bytes
+    bootstrap_methods: List[BootstrapMethod]
+
+    def __init__(self, b):
+        print(hexdump(b))
+        with mmap.mmap(-1, len(b)) as f:
+            f.write(b)
+            f.seek(0)
+            self.num_bootstrap_methods = parse_int(f.read(2))
+            self.bootstrap_methods = []
+            for _ in range(self.num_bootstrap_methods):
+                self.bootstrap_methods.append(BootstrapMethod(f))
 
 
 tCONSTANT = TypeVar('tCONSTANT',

@@ -34,39 +34,44 @@ class HelloWorld{
     lambda();
   }
 
-  public static void show(){
-    System.out.println("show string");
-  }
+  // public static void show(){
+  //   System.out.println("show string");
+  // }
 
-  public static int constant(){
-    return 1234;
-  }
+  // public static int constant(){
+  //   return 1234;
+  // }
 
-  public static int identity(int arg){
-    return arg;
-  }
+  // public static int identity(int arg){
+  //   return arg;
+  // }
 
-  public static int add(int x, int y){
-    return x + y;
-  }
+  // public static int add(int x, int y){
+  //   return x + y;
+  // }
 
-  public static int fibonacci(int n){
-    if(n == 0){
-      return 1;
-    }else if(n == 1){
-      return 1;
-    }else{
-      return fibonacci(n-1) + fibonacci(n-2);
-    }
-  }
+  // public static int fibonacci(int n){
+  //   if(n == 0){
+  //     return 1;
+  //   }else if(n == 1){
+  //     return 1;
+  //   }else{
+  //     return fibonacci(n-1) + fibonacci(n-2);
+  //   }
+  // }
 
-  public static void newInstance(){
-    Person p = new Person("Chisato", 17);
-    System.out.println(p.getName());
-  }
+  // public static void newInstance(){
+  //   Person p = new Person("Chisato", 17);
+  //   System.out.println(p.getName());
+  // }
 
   public static void lambda(){
-    String text = ((Supplier<String>) () -> "Hello from supplier").get();
+
+    Supplier<String> lambda = () ->{ 
+      System.out.println("Lambda in progress");
+      return "Hello from supplier";
+    };
+    String text = lambda.get();
     System.out.println(text);
   }
 }

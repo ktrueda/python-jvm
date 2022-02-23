@@ -2,7 +2,7 @@ import mmap
 import copy
 from textwrap import dedent
 from typing import Any, Dict, List, Optional, Union
-from python_jvm.class_parser import (CONSTANT_Class, CONSTANT_Integer, CONSTANT_Methodref, CONSTANT_NameAndType, CONSTANT_String, Code,
+from python_jvm.class_parser import (BootstrapMethods, CONSTANT_Class, CONSTANT_Integer, CONSTANT_InvokeDynamic, CONSTANT_Methodref, CONSTANT_NameAndType, CONSTANT_String, Code,
                                      ClassFile,
                                      Method,
                                      CONSTANT_Utf8,
@@ -36,6 +36,16 @@ def find_code(m: Method, cfs: Dict[str, ClassFile], _class: str) -> Optional[Cod
         assert isinstance(cp_name, CONSTANT_Utf8)
         if cp_name.info == b'Code':
             return Code(a.info)
+    return None
+
+
+def find_bootstrap_methods(cfs: Dict[str, ClassFile], _class: str) -> Optional[BootstrapMethods]:
+    c = cfs[_class]
+    for a in c.attributes:
+        cp_name: CONSTANT_Utf8 = c.constant_pool[a.attribute_name_index]
+        assert isinstance(cp_name, CONSTANT_Utf8)
+        if cp_name.info == b'BootstrapMethods':
+            return BootstrapMethods(a.info)
     return None
 
 
@@ -364,6 +374,17 @@ def execute(code: Code, cfs: Dict[str, ClassFile], _class: str, local_variables,
                     args[i] = stack.pop()
 
                 stack.append(execute(callee_code, cfs, callee_class, args, {}))
+            elif opcode == b'\xba':
+                logging.info('OPCODE: invokedynamic')
+                indexbyte1 = parse_int(mm.read(1))
+                indexbyte2 = parse_int(mm.read(1))
+                mm.read(2)  # skip 0000 byte
+                cp_invoke_dynamic_index = _merge_unsigned_bytes(indexbyte1, indexbyte2)
+                cp_invoke_dynamic: CONSTANT_InvokeDynamic = c.constant_pool[cp_invoke_dynamic_index]
+                logging.debug(f'cp_invoke_dynamic: {cp_invoke_dynamic}')
+                bsm: BootstrapMethods = find_bootstrap_methods(cfs, _class)
+                logging.debug(f'bsm: {bsm}')
+
             elif opcode == b'\xbb':
                 logging.info('OPCODE: new')
                 indexbyte1 = parse_int(mm.read(1))
