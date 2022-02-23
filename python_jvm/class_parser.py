@@ -193,6 +193,9 @@ class ClassFile:
 
 
 def constant_pool_type(b: bytes) -> type:
+    '''
+    see https://docs.oracle.com/javase/specs/jvms/se8/html/jvms-4.html#jvms-4.4 
+    '''
     i = parse_int(b)
     if i == 1:
         return CONSTANT_Utf8
@@ -207,9 +210,9 @@ def constant_pool_type(b: bytes) -> type:
     elif i == 10:
         return CONSTANT_Methodref
     elif i == 11:
-        return CONSTANT_Methodref
-    elif i == 12:
         return CONSTANT_InterfaceMethodref
+    elif i == 12:
+        return CONSTANT_NameAndType
     elif i == 15:
         return CONSTANT_MethodHandle
     elif i == 16:
