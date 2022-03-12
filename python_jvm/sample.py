@@ -5,7 +5,8 @@ logging.basicConfig(
     level=logging.WARN)
 
 
-cfs = load_classes('./*.class')
+cfs = load_classes('./tests/java/*.class')
+print(cfs.keys())
 main_method = find_method(cfs, 'HelloWorld', 'main')
 assert main_method is not None
 main_method_code = find_code(main_method, cfs, 'HelloWorld')
