@@ -12,6 +12,10 @@ jobs:
         uses: actions/setup-python@v1
         with:
           python-version: 3.8
+      - uses: actions/setup-java@v2
+        with:
+          distribution: 'microsoft' 
+          java-version: '17'
       - name: Install poetry and dependencies
         run: |
           python -m pip install --upgrade pip
@@ -19,4 +23,5 @@ jobs:
           poetry install
       - name: Run test
         run: |
+          javac -encoding UTF-8 *.java  -target 8 -source 8
           poetry run python -m pytest ./tests
