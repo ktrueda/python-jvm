@@ -67,9 +67,9 @@ def _merge_unsigned_bytes(byte1: int, byte2: int) -> int:
 
 def _new_instance(cfs: Dict[str, ClassFile], _class: str) -> Dict:
     return {
-        '_class': 'Person',
-        'name': None,
-        'age': None
+        '_class': _class,
+        'name': None,  # TODO
+        'age': None  # TODO
     }
 
 
@@ -398,6 +398,8 @@ def execute(code: Code, cfs: Dict[str, ClassFile], _class: str, local_variables,
                 heap[len(heap)] = _new_instance(cfs, class_name)
                 heap_index = len(heap) - 1
                 stack.append(heap_index)
+            elif opcode == b'\xbf':
+                logging.info('OPCODE: athrow')
 
             else:
                 raise Exception(f'unknown opcode {opcode}')
