@@ -6,7 +6,7 @@ import subprocess
 
 
 @pytest.fixture(params=[
-    'HelloWorld.class',
+    './tests/java/HelloWorld.class',
     # 'Print.class'
 ])
 def classfile_path(request):
@@ -19,7 +19,7 @@ def test_read_classfile(classfile_path):
 
 
 def test_load_classes():
-    actual = load_classes('./*.class')
+    actual = load_classes('./tests/java/*.class')
     assert actual.keys() == {"HelloWorld", "Print", "java/lang/Object", "Person"}
 
 
@@ -28,7 +28,7 @@ stdout = ""
 
 def test_execute_classfile(classfile_path, mocker):
     global stdout
-    cfs = load_classes('./*.class')
+    cfs = load_classes('./tests/java/*.class')
     cf = read_classfile(classfile_path)
     main_method = find_method(cfs, 'HelloWorld', 'main')
 
@@ -43,9 +43,9 @@ def test_execute_classfile(classfile_path, mocker):
                 'println': lambda x: append_stdout(x[0])
             }
         })
-        target_class = ''.join(classfile_path.split('.')[:-1])
+        target_class = ''.join(classfile_path.split('.')[:-1]).split('/')[-1]
         expected = subprocess.check_output(
-            f'java -cp . {target_class}',
+            f'cd ./tests/java; java -cp . {target_class}',
             shell=True,
             # stderr=subprocess.STDOUT,
             cwd='.').decode()
