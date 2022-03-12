@@ -23,5 +23,5 @@ jobs:
           poetry install
       - name: Run test
         run: |
-          javac -encoding UTF-8 *.java  -target 8 -source 8
+          javac -encoding UTF-8 ./tests/java/*.java  -target 8 -source 8
           poetry run python -m pytest ./tests
